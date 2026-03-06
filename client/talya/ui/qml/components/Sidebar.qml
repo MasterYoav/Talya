@@ -1,8 +1,12 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 
 Rectangle {
+    id: root
+
+    property string currentSection: "Today"
+    signal sectionSelected(string section)
+
     color: "#e9e7e1"
 
     Column {
@@ -23,24 +27,25 @@ Rectangle {
         }
 
         Column {
-            spacing: 10
+            width: parent.width
+            spacing: 8
 
-            Label {
-                text: "Inbox"
-                font.pixelSize: 22
-                color: "#2a2a2a"
+            SidebarItem {
+                label: "Inbox"
+                selected: root.currentSection === "Inbox"
+                onClicked: root.sectionSelected("Inbox")
             }
 
-            Label {
-                text: "Today"
-                font.pixelSize: 22
-                color: "#2a2a2a"
+            SidebarItem {
+                label: "Today"
+                selected: root.currentSection === "Today"
+                onClicked: root.sectionSelected("Today")
             }
 
-            Label {
-                text: "Upcoming"
-                font.pixelSize: 22
-                color: "#2a2a2a"
+            SidebarItem {
+                label: "Upcoming"
+                selected: root.currentSection === "Upcoming"
+                onClicked: root.sectionSelected("Upcoming")
             }
         }
     }
