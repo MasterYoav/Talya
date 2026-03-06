@@ -21,6 +21,7 @@ class AppState(QObject):
 
         self._current_section = section
         self.currentSectionChanged.emit()
+        self.tasksChanged.emit()
 
     @Property(str, notify=currentSectionChanged)
     def currentSection(self) -> str:
@@ -28,14 +29,16 @@ class AppState(QObject):
 
     @Property("QVariantList", notify=tasksChanged)
     def tasks(self) -> list[dict]:
+        tasks = self._task_service.list_tasks_for_section(self._current_section)
         return [
             {
                 "id": task.id,
                 "title": task.title,
+                "section": task.section,
                 "isCompleted": task.is_completed,
                 "createdAt": task.created_at.isoformat(),
             }
-            for task in self._task_service.list_tasks()
+            for task in tasks
         ]
 
     @Slot(str)
@@ -44,8 +47,14 @@ class AppState(QObject):
 
     @Slot(str)
     def addTask(self, title: str) -> None:
-        task = self._task_service.add_task(title)
+        task = self._task_service.add_task(title, self._current_section)
         if task is None:
             return
 
         self.tasksChanged.emit()
+
+    @Slot(str)
+    def toggleTaskCompleted(self, task_id: str) -> None:
+        changed = self._task_service.toggle_task_completed(task_id)
+        if changed:
+            self.tasksChanged.emit()
