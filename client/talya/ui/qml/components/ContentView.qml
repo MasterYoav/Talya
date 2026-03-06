@@ -66,6 +66,11 @@ Rectangle {
                     verticalAlignment: TextInput.AlignVCenter
                     selectByMouse: true
 
+                    onAccepted: {
+                        appState.addTask(text)
+                        text = ""
+                    }
+
                     Text {
                         visible: quickAddInput.text.length === 0
                         text: "Quick add a task..."
@@ -78,8 +83,8 @@ Rectangle {
         }
 
         Rectangle {
-            width: Math.min(parent.width, 640)
-            height: 180
+            width: Math.min(parent.width, 760)
+            height: 360
             radius: 18
             color: "#fbfaf7"
             border.color: "#e4e0d7"
@@ -88,21 +93,68 @@ Rectangle {
             Column {
                 anchors.fill: parent
                 anchors.margins: 20
-                spacing: 12
+                spacing: 14
 
                 Text {
-                    text: "Preview Area"
+                    text: "Tasks"
                     font.pixelSize: 20
                     font.bold: true
                     color: "#232323"
                 }
 
-                Text {
+                ScrollView {
                     width: parent.width
-                    wrapMode: Text.WordWrap
-                    text: "This is where tasks for the selected section will appear next. For now, we are building the app shell and interaction structure."
-                    font.pixelSize: 16
-                    color: "#66625a"
+                    height: parent.height - 50
+                    clip: true
+
+                    Column {
+                        width: parent.width
+                        spacing: 10
+
+                        Repeater {
+                            model: appState.tasks
+
+                            delegate: Rectangle {
+                                width: parent.width
+                                height: 54
+                                radius: 14
+                                color: "#ffffff"
+                                border.color: "#e5e0d8"
+                                border.width: 1
+
+                                Row {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 16
+                                    spacing: 14
+
+                                    Rectangle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 18
+                                        height: 18
+                                        radius: 9
+                                        color: "transparent"
+                                        border.color: "#b8b2a7"
+                                        border.width: 1
+                                    }
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData.title
+                                        font.pixelSize: 16
+                                        color: "#2a2a2a"
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            visible: appState.tasks.length === 0
+                            text: "No tasks yet. Add your first one above."
+                            font.pixelSize: 15
+                            color: "#7a756c"
+                        }
+                    }
                 }
             }
         }
