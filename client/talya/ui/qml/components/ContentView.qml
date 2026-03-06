@@ -4,9 +4,6 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-
-    property string currentSection: "Today"
-
     color: "#f6f5f1"
 
     Column {
@@ -30,15 +27,10 @@ Rectangle {
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.currentSection
+                    text: appState.currentSection
                     font.pixelSize: 34
                     font.bold: true
                     color: "#1e1e1e"
-                }
-
-                Item {
-                    width: 1
-                    height: 1
                 }
             }
         }

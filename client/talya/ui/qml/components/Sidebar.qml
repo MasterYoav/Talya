@@ -4,9 +4,6 @@ import QtQuick.Controls
 Rectangle {
     id: root
 
-    property string currentSection: "Today"
-    signal sectionSelected(string section)
-
     color: "#e9e7e1"
 
     Column {
@@ -32,20 +29,20 @@ Rectangle {
 
             SidebarItem {
                 label: "Inbox"
-                selected: root.currentSection === "Inbox"
-                onClicked: root.sectionSelected("Inbox")
+                selected: appState.currentSection === "Inbox"
+                onClicked: appState.selectSection("Inbox")
             }
 
             SidebarItem {
                 label: "Today"
-                selected: root.currentSection === "Today"
-                onClicked: root.sectionSelected("Today")
+                selected: appState.currentSection === "Today"
+                onClicked: appState.selectSection("Today")
             }
 
             SidebarItem {
                 label: "Upcoming"
-                selected: root.currentSection === "Upcoming"
-                onClicked: root.sectionSelected("Upcoming")
+                selected: appState.currentSection === "Upcoming"
+                onClicked: appState.selectSection("Upcoming")
             }
         }
     }
