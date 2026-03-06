@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from talya.domain.task import Task
 from talya.infrastructure.task_repository import TaskRepository
 
@@ -25,11 +27,22 @@ class TaskService:
     def list_tasks_for_section(self, section: str) -> list[Task]:
         return [task for task in self._tasks if task.section == section]
 
+    def get_task_by_id(self, task_id: str) -> Task | None:
+        for task in self._tasks:
+            if task.id == task_id:
+                return task
+        return None
+
     def toggle_task_completed(self, task_id: str) -> bool:
         for task in self._tasks:
             if task.id == task_id:
                 task.is_completed = not task.is_completed
-                self._repository.update_task_completion(task.id, task.is_completed)
+                task.updated_at = datetime.now()
+                self._repository.update_task_completion(
+                    task.id,
+                    task.is_completed,
+                    task.updated_at,
+                )
                 return True
         return False
 
@@ -41,7 +54,25 @@ class TaskService:
         for task in self._tasks:
             if task.id == task_id:
                 task.title = cleaned
-                self._repository.update_task_title(task.id, cleaned)
+                task.updated_at = datetime.now()
+                self._repository.update_task_title(
+                    task.id,
+                    cleaned,
+                    task.updated_at,
+                )
+                return True
+        return False
+
+    def update_task_notes(self, task_id: str, notes: str) -> bool:
+        for task in self._tasks:
+            if task.id == task_id:
+                task.notes = notes.strip()
+                task.updated_at = datetime.now()
+                self._repository.update_task_notes(
+                    task.id,
+                    task.notes,
+                    task.updated_at,
+                )
                 return True
         return False
 

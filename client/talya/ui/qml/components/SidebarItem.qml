@@ -12,11 +12,15 @@ Rectangle {
 
     height: 42
     radius: 12
+
     color: selected
-           ? (darkMode ? "#ffffff14" : "#00000008")
+           ? (darkMode ? "#18ffffff" : "#ccffffff")
            : (mouseArea.containsMouse
-              ? (darkMode ? "#ffffff0d" : "#00000005")
+              ? (darkMode ? "#0dffffff" : "#88ffffff")
               : "transparent")
+
+    border.width: 0
+    border.color: "transparent"
 
     Behavior on color {
         ColorAnimation { duration: 120 }

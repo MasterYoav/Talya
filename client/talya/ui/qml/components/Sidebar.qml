@@ -7,10 +7,23 @@ Rectangle {
     property bool darkMode: false
     property bool collapsed: false
 
-    color: darkMode ? "#1c1c1ecc" : "#f7f7f799"
-    border.color: darkMode ? "#ffffff12" : "#0000000d"
-    border.width: 1
+    color: darkMode ? "#660b0c10" : "#99ffffff"
+    border.width: darkMode ? 0 : 1
+    border.color: "#ffffffaa"
     radius: 0
+
+    Rectangle {
+        anchors.fill: parent
+        color: darkMode ? "#14000000" : "#22ffffff"
+    }
+
+    Rectangle {
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        width: 1
+        color: darkMode ? "#1affffff" : "#40ffffff"
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -26,7 +39,9 @@ Rectangle {
                 width: 42
                 height: 42
                 radius: 12
-                color: darkMode ? "#ffffff10" : "#00000006"
+                color: darkMode ? "#14ffffff" : "#ccffffff"
+                border.width: darkMode ? 0 : 1
+                border.color: "#ffffffcc"
 
                 Text {
                     anchors.centerIn: parent
@@ -56,9 +71,7 @@ Rectangle {
             }
         }
 
-        Item {
-            Layout.preferredHeight: 8
-        }
+        Item { Layout.preferredHeight: 8 }
 
         ColumnLayout {
             Layout.fillWidth: true
@@ -109,8 +122,8 @@ Rectangle {
                 iconText: "⚙"
                 collapsed: root.collapsed
                 darkMode: root.darkMode
-                selected: false
-                onClicked: appState.openSettings()
+                selected: appState.currentSection === "Settings"
+                onClicked: appState.selectSection("Settings")
             }
 
             SidebarItem {
@@ -119,8 +132,8 @@ Rectangle {
                 iconText: "◉"
                 collapsed: root.collapsed
                 darkMode: root.darkMode
-                selected: false
-                onClicked: console.log("Profile page is a future feature")
+                selected: appState.currentSection === "Profile"
+                onClicked: appState.selectSection("Profile")
             }
         }
     }

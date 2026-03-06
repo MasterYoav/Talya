@@ -1,26 +1,29 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 
 Rectangle {
     id: root
 
     property bool darkMode: false
+    property int sidebarWidth: 272
 
-    color: darkMode ? "#111214" : "#f5f5f7"
+    color: darkMode ? "#050505" : "#f6f7fb"
 
     Column {
         anchors.fill: parent
-        anchors.margins: 28
+        anchors.leftMargin: sidebarWidth + 28
+        anchors.rightMargin: 28
+        anchors.topMargin: 28
+        anchors.bottomMargin: 28
         spacing: 20
 
         Rectangle {
-            width: parent.width
+            width: Math.min(parent.width, 920)
             height: 64
             radius: 18
-            color: darkMode ? "#1c1c1e" : "#ffffffcc"
-            border.color: darkMode ? "#ffffff10" : "#00000008"
-            border.width: 1
+            color: darkMode ? "#101114" : "#ffffff"
+            border.width: darkMode ? 0 : 1
+            border.color: "#00000008"
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -42,9 +45,9 @@ Rectangle {
                 width: parent.width - 116
                 height: 56
                 radius: 16
-                color: darkMode ? "#1c1c1e" : "#ffffffcc"
-                border.color: darkMode ? "#ffffff10" : "#00000008"
-                border.width: 1
+                color: darkMode ? "#101114" : "#ffffff"
+                border.width: darkMode ? 0 : 1
+                border.color: "#00000008"
 
                 Row {
                     anchors.fill: parent
@@ -56,7 +59,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "+"
                         font.pixelSize: 24
-                        color: darkMode ? "#a1a1aa" : "#6b7280"
+                        color: darkMode ? "#8e8e93" : "#6b7280"
                     }
 
                     TextField {
@@ -66,6 +69,9 @@ Rectangle {
                         font.pixelSize: 17
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
                         placeholderText: "Quick add a task..."
+                        placeholderTextColor: darkMode ? "#6e6e73" : "#9aa1ad"
+                        selectionColor: darkMode ? "#2b2f38" : "#dbe7ff"
+                        selectedTextColor: darkMode ? "#ffffff" : "#1c1c1e"
                         background: Rectangle {
                             color: "transparent"
                             border.width: 0
@@ -84,10 +90,10 @@ Rectangle {
                 height: 56
                 radius: 16
                 color: appState.editMode
-                       ? (darkMode ? "#2c2c2e" : "#e9e9ed")
-                       : (darkMode ? "#1c1c1e" : "#ffffffcc")
-                border.color: darkMode ? "#ffffff10" : "#00000008"
-                border.width: 1
+                       ? (darkMode ? "#1a1e27" : "#eaf0ff")
+                       : (darkMode ? "#101114" : "#ffffff")
+                border.width: darkMode ? 0 : 1
+                border.color: "#00000008"
 
                 Text {
                     anchors.centerIn: parent
@@ -107,11 +113,11 @@ Rectangle {
 
         Rectangle {
             width: Math.min(parent.width, 920)
-            height: 500
+            height: parent.height - 140
             radius: 22
-            color: darkMode ? "#18181a" : "#ffffffb8"
-            border.color: darkMode ? "#ffffff0f" : "#00000008"
-            border.width: 1
+            color: darkMode ? "#0b0c0f" : "#ffffff"
+            border.width: darkMode ? 0 : 1
+            border.color: "#00000008"
 
             Column {
                 anchors.fill: parent
@@ -130,6 +136,9 @@ Rectangle {
                     height: parent.height - 50
                     clip: true
 
+                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
                     Column {
                         width: parent.width
                         spacing: 10
@@ -144,10 +153,20 @@ Rectangle {
                                 width: parent.width
                                 height: 76
                                 radius: 16
-                                color: darkMode ? "#222225" : "#ffffff"
-                                border.color: darkMode ? "#ffffff0f" : "#00000008"
-                                border.width: 1
+                                color: appState.selectedTask.id === modelData.id
+                                       ? (darkMode ? "#1c1e24" : "#eef4ff")
+                                       : (darkMode ? "#15161a" : "#fbfcff")
+                                border.width: 0
                                 opacity: modelData.isCompleted ? 0.68 : 1.0
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        appState.selectTask(modelData.id)
+                                        taskDetailsPopup.open()
+                                    }
+                                }
 
                                 Row {
                                     anchors.fill: parent
@@ -160,8 +179,8 @@ Rectangle {
                                         width: 18
                                         height: 18
                                         radius: 9
-                                        color: modelData.isCompleted ? "#7f9f7c" : "transparent"
-                                        border.color: modelData.isCompleted ? "#7f9f7c" : (darkMode ? "#8e8e93" : "#b0b0b7")
+                                        color: modelData.isCompleted ? "#82a97f" : "transparent"
+                                        border.color: modelData.isCompleted ? "#82a97f" : (darkMode ? "#8e8e93" : "#b7bfcc")
                                         border.width: 1
 
                                         MouseArea {
@@ -176,9 +195,12 @@ Rectangle {
                                         width: appState.editMode ? taskCard.width - 180 : taskCard.width - 90
                                         spacing: 4
 
-                                        Loader {
-                                            width: parent.width
-                                            sourceComponent: appState.editMode ? editComponent : labelComponent
+                                        Text {
+                                            text: modelData.title
+                                            font.pixelSize: 16
+                                            color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                            font.strikeout: modelData.isCompleted
+                                            wrapMode: Text.WordWrap
                                         }
 
                                         Text {
@@ -199,7 +221,8 @@ Rectangle {
                                         width: 40
                                         height: 40
                                         radius: 12
-                                        color: darkMode ? "#4a1f24" : "#fdecec"
+                                        color: darkMode ? "#3a171b" : "#ffe9ec"
+                                        border.width: 0
 
                                         Text {
                                             anchors.centerIn: parent
@@ -214,40 +237,6 @@ Rectangle {
                                         }
                                     }
                                 }
-
-                                Component {
-                                    id: labelComponent
-
-                                    Text {
-                                        text: modelData.title
-                                        font.pixelSize: 16
-                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                                        font.strikeout: modelData.isCompleted
-                                        wrapMode: Text.WordWrap
-                                    }
-                                }
-
-                                Component {
-                                    id: editComponent
-
-                                    TextField {
-                                        width: parent ? parent.width : 300
-                                        text: modelData.title
-                                        font.pixelSize: 16
-                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                                        selectByMouse: true
-                                        background: Rectangle {
-                                            radius: 10
-                                            color: darkMode ? "#2a2a2d" : "#f2f2f7"
-                                            border.color: darkMode ? "#ffffff10" : "#00000008"
-                                            border.width: 1
-                                        }
-
-                                        onEditingFinished: {
-                                            appState.updateTaskTitle(modelData.id, text)
-                                        }
-                                    }
-                                }
                             }
                         }
 
@@ -256,6 +245,224 @@ Rectangle {
                             text: "No tasks in " + appState.currentSection + " yet. Add your first one above."
                             font.pixelSize: 15
                             color: darkMode ? "#8e8e93" : "#6e6e73"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+        Popup {
+        id: taskDetailsPopup
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        width: 520
+        height: 520
+        anchors.centerIn: parent
+        padding: 0
+
+        background: Rectangle {
+            radius: 22
+            color: darkMode ? "#0b0c0f" : "#ffffff"
+            border.width: darkMode ? 0 : 1
+            border.color: "#00000008"
+        }
+
+        onClosed: {
+            appState.clearSelectedTask()
+        }
+
+        property string draftTitle: ""
+        property string draftNotes: ""
+
+        function loadFromSelectedTask() {
+            if (appState.hasSelectedTask) {
+                draftTitle = appState.selectedTask.title || ""
+                draftNotes = appState.selectedTask.notes || ""
+            } else {
+                draftTitle = ""
+                draftNotes = ""
+            }
+        }
+
+        Connections {
+            target: appState
+            function onSelectedTaskChanged() {
+                if (taskDetailsPopup.visible) {
+                    taskDetailsPopup.loadFromSelectedTask()
+                }
+            }
+        }
+
+        onOpened: {
+            loadFromSelectedTask()
+        }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 16
+
+            Row {
+                width: parent.width
+                height: 40
+                spacing: 12
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Task Details"
+                    font.pixelSize: 24
+                    font.bold: true
+                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                }
+
+                Item {
+                    width: parent.width - 120
+                    height: 1
+                }
+
+                Rectangle {
+                    width: 36
+                    height: 36
+                    radius: 10
+                    color: darkMode ? "#1b1d22" : "#f3f4f8"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✕"
+                        font.pixelSize: 14
+                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: taskDetailsPopup.close()
+                    }
+                }
+            }
+
+            Text {
+                text: "Title"
+                font.pixelSize: 14
+                font.bold: true
+                color: darkMode ? "#c7c7cc" : "#4b5563"
+            }
+
+            TextField {
+                id: detailTitleField
+                width: parent.width
+                text: taskDetailsPopup.draftTitle
+                font.pixelSize: 17
+                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                onTextChanged: taskDetailsPopup.draftTitle = text
+
+                background: Rectangle {
+                    radius: 14
+                    color: darkMode ? "#15161a" : "#f4f7ff"
+                    border.width: darkMode ? 0 : 1
+                    border.color: "#00000008"
+                }
+            }
+
+            Text {
+                text: "Notes"
+                font.pixelSize: 14
+                font.bold: true
+                color: darkMode ? "#c7c7cc" : "#4b5563"
+            }
+
+            TextArea {
+                id: detailNotesField
+                width: parent.width
+                height: 220
+                text: taskDetailsPopup.draftNotes
+                wrapMode: TextEdit.Wrap
+                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                placeholderText: "Add notes for this task..."
+                placeholderTextColor: darkMode ? "#6e6e73" : "#9aa1ad"
+                selectByMouse: true
+                onTextChanged: taskDetailsPopup.draftNotes = text
+
+                background: Rectangle {
+                    radius: 14
+                    color: darkMode ? "#15161a" : "#f4f7ff"
+                    border.width: darkMode ? 0 : 1
+                    border.color: "#00000008"
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 82
+                radius: 14
+                color: darkMode ? "#15161a" : "#f6f7fb"
+
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 6
+
+                    Text {
+                        text: appState.hasSelectedTask
+                              ? "Created " + appState.selectedTask.createdLabel
+                              : ""
+                        font.pixelSize: 14
+                        color: darkMode ? "#8e8e93" : "#6e6e73"
+                    }
+
+                    Text {
+                        text: appState.hasSelectedTask && appState.selectedTask.updatedAt
+                              ? "Updated recently"
+                              : "No recent updates"
+                        font.pixelSize: 14
+                        color: darkMode ? "#8e8e93" : "#6e6e73"
+                    }
+                }
+            }
+
+            Item {
+                width: 1
+                height: 1
+            }
+
+            Row {
+                width: parent.width
+                height: 48
+
+                Item {
+                    width: parent.width - 112
+                    height: 1
+                }
+
+                Rectangle {
+                    width: 112
+                    height: 48
+                    radius: 14
+                    color: darkMode ? "#1a1e27" : "#eaf0ff"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Save"
+                        font.pixelSize: 16
+                        font.bold: true
+                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (appState.hasSelectedTask) {
+                                const taskId = appState.selectedTask.id
+                                const newTitle = taskDetailsPopup.draftTitle
+                                const newNotes = taskDetailsPopup.draftNotes
+
+                                appState.updateTaskNotes(taskId, newNotes)
+                                appState.updateTaskTitle(taskId, newTitle)
+                            }
+                            taskDetailsPopup.close()
                         }
                     }
                 }

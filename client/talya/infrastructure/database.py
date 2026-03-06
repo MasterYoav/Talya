@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from talya.infrastructure.migrations import run_migrations
+
 
 def get_database_path() -> Path:
     project_root = Path(__file__).resolve().parents[2]
@@ -32,5 +34,6 @@ def initialize_database() -> None:
             """
         )
         connection.commit()
+        run_migrations(connection)
     finally:
         connection.close()
