@@ -65,3 +65,32 @@ class TaskRepository:
             connection.commit()
         finally:
             connection.close()
+
+    def update_task_title(self, task_id: str, title: str) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                UPDATE tasks
+                SET title = ?
+                WHERE id = ?
+                """,
+                (title, task_id),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def delete_task(self, task_id: str) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                DELETE FROM tasks
+                WHERE id = ?
+                """,
+                (task_id,),
+            )
+            connection.commit()
+        finally:
+            connection.close()

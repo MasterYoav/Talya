@@ -32,3 +32,23 @@ class TaskService:
                 self._repository.update_task_completion(task.id, task.is_completed)
                 return True
         return False
+
+    def update_task_title(self, task_id: str, title: str) -> bool:
+        cleaned = title.strip()
+        if not cleaned:
+            return False
+
+        for task in self._tasks:
+            if task.id == task_id:
+                task.title = cleaned
+                self._repository.update_task_title(task.id, cleaned)
+                return True
+        return False
+
+    def delete_task(self, task_id: str) -> bool:
+        for index, task in enumerate(self._tasks):
+            if task.id == task_id:
+                del self._tasks[index]
+                self._repository.delete_task(task.id)
+                return True
+        return False
