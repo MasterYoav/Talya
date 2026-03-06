@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from talya.domain.task import Task
+from talya.infrastructure.task_repository import TaskRepository
 
 
 class TaskService:
     def __init__(self) -> None:
-        self._tasks: list[Task] = []
+        self._repository = TaskRepository()
+        self._tasks: list[Task] = self._repository.list_tasks()
 
     def add_task(self, title: str, section: str) -> Task | None:
         cleaned = title.strip()
@@ -13,7 +15,8 @@ class TaskService:
             return None
 
         task = Task.create(cleaned, section)
-        self._tasks.append(task)
+        self._repository.add_task(task)
+        self._tasks.insert(0, task)
         return task
 
     def list_tasks(self) -> list[Task]:
@@ -26,5 +29,6 @@ class TaskService:
         for task in self._tasks:
             if task.id == task_id:
                 task.is_completed = not task.is_completed
+                self._repository.update_task_completion(task.id, task.is_completed)
                 return True
         return False

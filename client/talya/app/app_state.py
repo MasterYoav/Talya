@@ -1,5 +1,6 @@
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from talya.infrastructure.database import initialize_database
 from talya.services.task_service import TaskService
 
 
@@ -9,6 +10,7 @@ class AppState(QObject):
 
     def __init__(self) -> None:
         super().__init__()
+        initialize_database()
         self._current_section = "Today"
         self._task_service = TaskService()
 
