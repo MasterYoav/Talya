@@ -26,4 +26,5 @@ def decode_access_token(token: str) -> dict:
         algorithms=["HS256"],
         audience=JWT_AUDIENCE,
         issuer=JWT_ISSUER,
+        options={"verify_exp": False},
     )
