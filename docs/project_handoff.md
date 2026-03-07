@@ -625,6 +625,16 @@ Completed:
 - right-click context menu for edit/pin/remove
 - macOS emoji picker button for list icons
 
+### Phase 13 — Backend + sync foundation
+Completed:
+- FastAPI server scaffold with JWT auth
+- OAuth identity login endpoint
+- `/sync/merge` endpoint for lists, tasks, settings
+- PostgreSQL schema for users, identities, lists, tasks, settings
+Notes:
+- OAuth tokens are not yet verified on the server
+- client sync wiring is still pending
+
 ---
 
 ## Current Task Database Schema
@@ -708,11 +718,14 @@ Theme/sidebar state is not yet persisted between restarts unless implemented lat
 (Depending on current branch state, verify before assuming.)
 
 ### Backend / sync
+Implemented:
+- FastAPI scaffold (JWT + OAuth identity linking)
+- PostgreSQL schema definitions
+- `/sync/merge` last-write-wins merge
+
 Not implemented yet:
-- FastAPI
-- PostgreSQL
-- auth
-- sync
+- client sync wiring
+- OAuth token verification on server
 - calendar connections
 
 ---

@@ -9,5 +9,5 @@ Talya uses a local-first architecture:
 - reminder system with launchd background helper (macOS)
 - Account-scoped data stored in per-account SQLite databases
 - Browser-based OAuth with local loopback callback and PKCE (Google)
-- Backend API with FastAPI
-- Cloud sync storage with PostgreSQL
+- Backend API with FastAPI (JWT, OAuth identity linking)
+- Cloud sync storage with PostgreSQL (lists, tasks, settings)

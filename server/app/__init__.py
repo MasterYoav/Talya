@@ -1,0 +1,1 @@
+"""Talya backend app package."""
