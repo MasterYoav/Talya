@@ -4,6 +4,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,8 +24,13 @@ def _current_user_id(
     creds: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:
     token = creds.credentials
-    data = decode_access_token(token)
-    return data["sub"]
+    try:
+        data = decode_access_token(token)
+        return data["sub"]
+    except jwt.ExpiredSignatureError as exc:
+        raise HTTPException(status_code=401, detail="Token expired.") from exc
+    except jwt.InvalidTokenError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token.") from exc
 
 
 @router.post("/merge", response_model=SyncResponse)
