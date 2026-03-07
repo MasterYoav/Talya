@@ -7,7 +7,7 @@ from uuid import uuid4
 class Task:
     id: str
     title: str
-    section: str
+    list_id: str
     is_completed: bool
     created_at: datetime
     updated_at: datetime | None = None
@@ -17,12 +17,12 @@ class Task:
     reminder_fired_at: datetime | None = None
 
     @staticmethod
-    def create(title: str, section: str) -> "Task":
+    def create(title: str, list_id: str) -> "Task":
         now = datetime.now()
         return Task(
             id=str(uuid4()),
             title=title.strip(),
-            section=section,
+            list_id=list_id,
             is_completed=False,
             created_at=now,
             updated_at=now,

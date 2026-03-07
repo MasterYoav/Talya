@@ -49,6 +49,7 @@ At this stage, the app already supports:
 - per-account app icon selection (macOS dock)
 - reminder scheduling with in-app + macOS notifications
 - background reminder helper (launchd)
+- customizable sidebar lists (CRUD with icon/color)
 
 Note: account preferences are local only; sync across devices requires a backend.
 
@@ -319,6 +320,15 @@ Responsibilities:
 
 ---
 
+### `client/talya/infrastructure/macos_emoji_picker.py`
+
+**Purpose:** Open the native macOS emoji/character picker.
+
+Responsibilities:
+- trigger the system emoji picker for icon selection
+
+---
+
 ### `client/talya/reminder_daemon.py`
 
 **Purpose:** Background reminder worker.
@@ -327,6 +337,37 @@ Responsibilities:
 - polls account databases for due reminders
 - sends macOS notifications
 - marks reminders as fired
+
+---
+
+### `client/talya/domain/sidebar_list.py`
+
+**Purpose:** Sidebar list data model.
+
+Responsibilities:
+- represents list name, icon, color, order, and type
+
+---
+
+### `client/talya/infrastructure/list_repository.py`
+
+**Purpose:** Sidebar list persistence.
+
+Responsibilities:
+- list, create, update, delete sidebar lists
+- reassign tasks when lists are deleted
+
+---
+
+### `client/talya/services/list_service.py`
+
+**Purpose:** Sidebar list business logic.
+
+Responsibilities:
+- manage in-memory list state
+- CRUD operations for lists
+- pin/unpin lists
+- reorder list positions
 
 ---
 
@@ -499,7 +540,8 @@ Current behavior:
 - allows switching:
   - Light mode
   - Dark mode
-- has placeholder Connections section
+- Theme section includes sidebar blur + app icon controls
+- Preferences section includes reminder settings
 
 ---
 
@@ -575,6 +617,14 @@ Completed:
 - title save to SQLite
 - notes save to SQLite
 
+### Phase 12 — Sidebar list customization
+Completed:
+- add/delete lists from the sidebar
+- edit list name, icon, and color
+- pin/unpin lists with a pinned section + separator
+- right-click context menu for edit/pin/remove
+- macOS emoji picker button for list icons
+
 ---
 
 ## Current Task Database Schema
@@ -631,8 +681,8 @@ That same layered flow is used for:
 These are not bugs unless stated otherwise; many are just not implemented yet.
 
 ### Visual
-- sidebar is only **glass-like**, not true macOS native blur
-- icons are temporary Unicode symbols
+- sidebar blur uses macOS NSVisualEffectView (macOS-only)
+- sidebar icons are user-provided (emoji or text)
 - UI polish is still unfinished
 
 ### Data model

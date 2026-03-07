@@ -18,9 +18,9 @@ Rectangle {
     Loader {
         id: mainLoader
         anchors.fill: parent
-        sourceComponent: appState.currentSection === "Settings"
+        sourceComponent: appState.currentListType === "settings"
                          ? settingsViewComponent
-                         : appState.currentSection === "Profile"
+                         : appState.currentListType === "profile"
                            ? profileViewComponent
                            : tasksViewComponent
     }

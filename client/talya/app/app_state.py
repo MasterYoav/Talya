@@ -14,11 +14,15 @@ from talya.infrastructure.macos_launch_agent import (
     install_launch_agent,
     uninstall_launch_agent,
 )
+from talya.infrastructure.macos_emoji_picker import show_emoji_picker
+from talya.services.list_service import ListService
 from talya.services.task_service import TaskService
 
 
 class AppState(QObject):
     currentSectionChanged = Signal()
+    sidebarListsChanged = Signal()
+    currentListTypeChanged = Signal()
     tasksChanged = Signal()
     darkModeChanged = Signal()
     sidebarCollapsedChanged = Signal()
@@ -42,11 +46,14 @@ class AppState(QObject):
         self._account_key = ""
         self._settings_repository = SettingsRepository()
         self._task_service: TaskService | None = None
+        self._list_service: ListService | None = None
         self._auth_service = AuthService()
         self._dark_mode = False
         self._sidebar_collapsed = False
         self._edit_mode = False
         self._selected_task_id: str | None = None
+        self._current_list_id: str | None = None
+        self._current_list_type = "inbox"
         self._is_authenticated = False
         self._user_name = ""
         self._user_email = ""
@@ -75,16 +82,46 @@ class AppState(QObject):
     def currentSection(self) -> str:
         return self._current_section
 
+    @Property(str, notify=currentListTypeChanged)
+    def currentListType(self) -> str:
+        return self._current_list_type
+
+    @Property("QVariantList", notify=sidebarListsChanged)
+    def sidebarLists(self) -> list[dict]:
+        if self._list_service is None:
+            return []
+        items = list(self._list_service.list_lists())
+        items.sort(key=lambda item: (not item.is_pinned, item.position))
+        return [
+            {
+                "id": item.id,
+                "name": item.name,
+                "icon": item.icon,
+                "color": item.color,
+                "listType": item.list_type,
+                "isSystem": item.is_system,
+                "isPinned": item.is_pinned,
+            }
+            for item in items
+        ]
+
     @Property("QVariantList", notify=tasksChanged)
     def tasks(self) -> list[dict]:
         if self._task_service is None:
             return []
-        tasks = self._task_service.list_tasks_for_section(self._current_section)
+        if self._list_service is None or self._current_list_id is None:
+            return []
+        current_list = self._list_service.get_by_id(self._current_list_id)
+        if current_list is None:
+            return []
+        if current_list.list_type in {"settings", "profile"}:
+            return []
+        tasks = self._task_service.list_tasks_for_list(current_list)
         return [
             {
                 "id": task.id,
                 "title": task.title,
-                "section": task.section,
+                "listId": task.list_id,
                 "isCompleted": task.is_completed,
                 "createdAt": task.created_at.isoformat(),
                 "createdLabel": self._format_created_label(task.created_at),
@@ -112,7 +149,7 @@ class AppState(QObject):
         return {
             "id": task.id,
             "title": task.title,
-            "section": task.section,
+            "listId": task.list_id,
             "isCompleted": task.is_completed,
             "createdAt": task.created_at.isoformat(),
             "createdLabel": self._format_created_label(task.created_at),
@@ -220,11 +257,29 @@ class AppState(QObject):
         set_database_path(self._account_database_path(self._account_key))
         initialize_database()
         self._task_service = TaskService()
+        self._list_service = ListService()
+        self._ensure_current_list()
         self._selected_task_id = None
         self._load_settings()
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
         self.currentSectionChanged.emit()
+        self.sidebarListsChanged.emit()
+
+    def _ensure_current_list(self) -> None:
+        if self._list_service is None:
+            return
+        lists = self._list_service.list_lists()
+        if not lists:
+            return
+        if self._current_list_id is None:
+            self._current_list_id = lists[0].id
+        current = self._list_service.get_by_id(self._current_list_id)
+        if current is None:
+            self._current_list_id = lists[0].id
+            current = lists[0]
+        self._current_section = current.name
+        self._current_list_type = current.list_type
 
     def _load_settings(self) -> None:
         dark_mode = self._settings_repository.get("dark_mode")
@@ -282,11 +337,20 @@ class AppState(QObject):
     def selectSection(self, section: str) -> None:
         if section == self._current_section:
             return
-        self._current_section = section
+        if self._list_service is None:
+            return
+        for item in self._list_service.list_lists():
+            if item.name == section:
+                self._current_list_id = item.id
+                self._current_section = item.name
+                self._current_list_type = item.list_type
+                break
         self._selected_task_id = None
         self.currentSectionChanged.emit()
+        self.currentListTypeChanged.emit()
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
+        self.sidebarListsChanged.emit()
 
     @Slot(str)
     def selectTask(self, task_id: str) -> None:
@@ -304,9 +368,11 @@ class AppState(QObject):
 
     @Slot(str)
     def addTask(self, title: str) -> None:
-        if self._task_service is None:
+        if self._task_service is None or self._current_list_id is None:
             return
-        task = self._task_service.add_task(title, self._current_section)
+        if self._current_list_type in {"settings", "profile"}:
+            return
+        task = self._task_service.add_task(title, self._current_list_id)
         if task is None:
             return
         self._selected_task_id = task.id
@@ -425,6 +491,95 @@ class AppState(QObject):
         self._save_setting("app_icon_choice", value)
         self.appIconChoiceChanged.emit()
 
+    @Slot(str)
+    def selectList(self, list_id: str) -> None:
+        if self._list_service is None:
+            return
+        current = self._list_service.get_by_id(list_id)
+        if current is None:
+            return
+        if list_id == self._current_list_id:
+            return
+        self._current_list_id = list_id
+        self._current_section = current.name
+        self._current_list_type = current.list_type
+        self._selected_task_id = None
+        self.currentSectionChanged.emit()
+        self.currentListTypeChanged.emit()
+        self.tasksChanged.emit()
+        self.selectedTaskChanged.emit()
+
+    @Slot(str, str, str)
+    def addSidebarList(self, name: str, icon: str, color: str) -> None:
+        if self._list_service is None:
+            return
+        cleaned = name.strip()
+        if not cleaned:
+            return
+        new_list = self._list_service.add_list(cleaned, icon or "•", color or "#9aa1ad")
+        self._current_list_id = new_list.id
+        self._current_section = new_list.name
+        self.sidebarListsChanged.emit()
+        self.currentSectionChanged.emit()
+        self.tasksChanged.emit()
+
+    @Slot(str, str, str, str)
+    def updateSidebarList(self, list_id: str, name: str, icon: str, color: str) -> None:
+        if self._list_service is None:
+            return
+        cleaned = name.strip()
+        if not cleaned:
+            return
+        changed = self._list_service.update_list(list_id, cleaned, icon or "•", color or "#9aa1ad")
+        if changed:
+            if list_id == self._current_list_id:
+                self._current_section = cleaned
+                self.currentSectionChanged.emit()
+            self.sidebarListsChanged.emit()
+
+    @Slot(str)
+    def deleteSidebarList(self, list_id: str) -> None:
+        if self._list_service is None:
+            return
+        fallback = next(
+            (
+                item
+                for item in self._list_service.list_lists()
+                if item.list_type not in {"settings", "profile"} and item.id != list_id
+            ),
+            None,
+        )
+        if fallback is None:
+            return
+        deleted = self._list_service.delete_list(list_id, fallback.id)
+        if deleted:
+            if self._current_list_id == list_id:
+                self._current_list_id = fallback.id
+                self._current_section = fallback.name
+                self._current_list_type = fallback.list_type
+            self.sidebarListsChanged.emit()
+            self.currentSectionChanged.emit()
+            self.currentListTypeChanged.emit()
+            self.tasksChanged.emit()
+
+    @Slot(str)
+    def toggleListPinned(self, list_id: str) -> None:
+        if self._list_service is None:
+            return
+        changed = self._list_service.toggle_pinned(list_id)
+        if changed:
+            self.sidebarListsChanged.emit()
+
+    @Slot("QVariantList")
+    def reorderSidebarLists(self, ordered_ids: list[str]) -> None:
+        if self._list_service is None:
+            return
+        cleaned = [value for value in ordered_ids if isinstance(value, str)]
+        if not cleaned:
+            return
+        self._list_service.reorder_lists(cleaned)
+        self.sidebarListsChanged.emit()
+
     @Slot(bool)
     def setReminderNotifyApp(self, value: bool) -> None:
         if self._reminder_notify_app == value:
@@ -460,6 +615,10 @@ class AppState(QObject):
         self.editModeChanged.emit()
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
+
+    @Slot()
+    def showEmojiPicker(self) -> None:
+        show_emoji_picker()
 
     def _start_reminder_timer(self) -> None:
         self._reminder_timer = QTimer(self)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from talya.domain.sidebar_list import SidebarList
 from talya.domain.task import Task
 from talya.infrastructure.task_repository import TaskRepository
 
@@ -11,12 +12,12 @@ class TaskService:
         self._repository = TaskRepository()
         self._tasks: list[Task] = self._repository.list_tasks()
 
-    def add_task(self, title: str, section: str) -> Task | None:
+    def add_task(self, title: str, list_id: str) -> Task | None:
         cleaned = title.strip()
         if not cleaned:
             return None
 
-        task = Task.create(cleaned, section)
+        task = Task.create(cleaned, list_id)
         self._repository.add_task(task)
         self._tasks.insert(0, task)
         return task
@@ -24,22 +25,22 @@ class TaskService:
     def list_tasks(self) -> list[Task]:
         return list(self._tasks)
 
-    def list_tasks_for_section(self, section: str) -> list[Task]:
-        if section == "Today":
+    def list_tasks_for_list(self, sidebar_list: SidebarList) -> list[Task]:
+        if sidebar_list.list_type == "today":
             today = date.today()
             return [
                 task
                 for task in self._tasks
-                if self._is_due_on(task, today) or task.section == section
+                if self._is_due_on(task, today) or task.list_id == sidebar_list.id
             ]
-        if section == "Upcoming":
+        if sidebar_list.list_type == "upcoming":
             today = date.today()
             return [
                 task
                 for task in self._tasks
-                if self._is_due_after(task, today) or task.section == section
+                if self._is_due_after(task, today) or task.list_id == sidebar_list.id
             ]
-        return [task for task in self._tasks if task.section == section]
+        return [task for task in self._tasks if task.list_id == sidebar_list.id]
 
     def get_task_by_id(self, task_id: str) -> Task | None:
         for task in self._tasks:

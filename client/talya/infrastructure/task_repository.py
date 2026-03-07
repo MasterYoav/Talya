@@ -21,6 +21,7 @@ class TaskRepository:
                 SELECT
                     id,
                     title,
+                    list_id,
                     section,
                     is_completed,
                     created_at,
@@ -38,7 +39,7 @@ class TaskRepository:
                 Task(
                     id=row["id"],
                     title=row["title"],
-                    section=row["section"],
+                    list_id=row["list_id"] or row["section"],
                     is_completed=bool(row["is_completed"]),
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=parse_optional_datetime(row["updated_at"]),
@@ -61,6 +62,7 @@ class TaskRepository:
                     id,
                     title,
                     section,
+                    list_id,
                     is_completed,
                     created_at,
                     updated_at,
@@ -69,12 +71,13 @@ class TaskRepository:
                     reminder_at,
                     reminder_fired_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task.id,
                     task.title,
-                    task.section,
+                    task.list_id,
+                    task.list_id,
                     int(task.is_completed),
                     task.created_at.isoformat(),
                     task.updated_at.isoformat() if task.updated_at else None,
