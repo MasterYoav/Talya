@@ -14,6 +14,7 @@ class Task:
     notes: str | None = None
     due_date: datetime | None = None
     reminder_at: datetime | None = None
+    reminder_fired_at: datetime | None = None
 
     @staticmethod
     def create(title: str, section: str) -> "Task":
@@ -28,4 +29,5 @@ class Task:
             notes=None,
             due_date=None,
             reminder_at=None,
+            reminder_fired_at=None,
         )

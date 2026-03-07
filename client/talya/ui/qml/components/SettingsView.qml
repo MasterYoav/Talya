@@ -66,7 +66,7 @@ Rectangle {
 
                 Rectangle {
                     width: parent.width
-                    height: 200
+                    height: 280
                     radius: 18
                     color: darkMode ? "#14161a" : "#f4f6fb"
                     border.width: darkMode ? 0 : 1
@@ -161,19 +161,98 @@ Rectangle {
                                 color: darkMode ? "#c7c7cc" : "#4b5563"
                             }
 
+                            Switch {
+                                checked: appState.sidebarBlurEnabled
+                                text: "Enable blur"
+                                onToggled: appState.setSidebarBlurEnabled(checked)
+                            }
+
                             Slider {
                                 id: blurSlider
                                 from: 0.0
                                 to: 1.0
                                 value: appState.sidebarBlurOpacity
+                                enabled: appState.sidebarBlurEnabled
+                                opacity: appState.sidebarBlurEnabled ? 1.0 : 0.4
                                 onMoved: appState.setSidebarBlurOpacity(value)
+                            }
+
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: 10
+
+                            Text {
+                                text: "App Icon"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: darkMode ? "#c7c7cc" : "#4b5563"
+                            }
+
+                            Row {
+                                spacing: 14
+
+                                Rectangle {
+                                    width: 96
+                                    height: 96
+                                    radius: 20
+                                    color: appState.appIconChoice === "dark"
+                                           ? (darkMode ? "#1b1f28" : "#ffffff")
+                                           : (darkMode ? "#101114" : "#f0f2f7")
+                                    border.width: appState.appIconChoice === "dark" ? 2 : 0
+                                    border.color: darkMode ? "#5a5f6b" : "#d5d9e5"
+
+                                    Image {
+                                        anchors.centerIn: parent
+                                        source: Qt.resolvedUrl(
+                                            "../../../../../media/dark.xcassets/AppIcon.appiconset/256-mac.png"
+                                        )
+                                        width: 64
+                                        height: 64
+                                        fillMode: Image.PreserveAspectFit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: appState.setAppIconChoice("dark")
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 96
+                                    height: 96
+                                    radius: 20
+                                    color: appState.appIconChoice === "light"
+                                           ? (darkMode ? "#1b1f28" : "#ffffff")
+                                           : (darkMode ? "#101114" : "#f0f2f7")
+                                    border.width: appState.appIconChoice === "light" ? 2 : 0
+                                    border.color: darkMode ? "#5a5f6b" : "#d5d9e5"
+
+                                    Image {
+                                        anchors.centerIn: parent
+                                        source: Qt.resolvedUrl(
+                                            "../../../../../media/light.xcassets/AppIcon.appiconset/256-mac.png"
+                                        )
+                                        width: 64
+                                        height: 64
+                                        fillMode: Image.PreserveAspectFit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: appState.setAppIconChoice("light")
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
                 Text {
-                    text: "Connections"
+                    text: "Preferences"
                     font.pixelSize: 22
                     font.bold: true
                     color: darkMode ? "#f2f2f7" : "#1c1c1e"
@@ -181,19 +260,45 @@ Rectangle {
 
                 Rectangle {
                     width: parent.width
-                    height: 82
+                    height: 170
                     radius: 18
                     color: darkMode ? "#14161a" : "#f4f6fb"
                     border.width: darkMode ? 0 : 1
                     border.color: "#00000006"
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.left: parent.left
-                        anchors.leftMargin: 18
-                        text: "Google Calendar, GitHub, Apple Calendar — future feature"
-                        font.pixelSize: 15
-                        color: darkMode ? "#8e8e93" : "#6b7280"
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 14
+
+                        Text {
+                            text: "Reminders"
+                            font.pixelSize: 14
+                            font.bold: true
+                            color: darkMode ? "#c7c7cc" : "#4b5563"
+                        }
+
+                        Row {
+                            spacing: 12
+
+                            Switch {
+                                checked: appState.reminderNotifyApp
+                                text: "In-app banner"
+                                onToggled: appState.setReminderNotifyApp(checked)
+                            }
+
+                            Switch {
+                                checked: appState.reminderNotifySystem
+                                text: "macOS notification"
+                                onToggled: appState.setReminderNotifySystem(checked)
+                            }
+                        }
+
+                        Switch {
+                            checked: appState.reminderNotifyBackground
+                            text: "Background notifications"
+                            onToggled: appState.setReminderNotifyBackground(checked)
+                        }
                     }
                 }
             }

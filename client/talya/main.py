@@ -2,15 +2,22 @@ import os
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
 from PySide6.QtGui import QGuiApplication, QSurfaceFormat
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQml import QQmlApplicationEngine
 
-from talya.app.app_state import AppState
+from talya.infrastructure.macos_app_icon import apply_app_icon
 from talya.infrastructure.macos_vibrancy import apply_vibrancy
 
 
 def main() -> int:
+    repo_root = Path(__file__).resolve().parents[2]
+    env_path = repo_root / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
+    else:
+        load_dotenv(repo_root / ".env.example", override=True)
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
     surface_format = QSurfaceFormat()
     surface_format.setAlphaBufferSize(8)
@@ -18,6 +25,8 @@ def main() -> int:
     QQuickWindow.setDefaultAlphaBuffer(True)
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
+
+    from talya.app.app_state import AppState
 
     app_state = AppState()
     engine.rootContext().setContextProperty("appState", app_state)
@@ -33,20 +42,25 @@ def main() -> int:
         int(window.winId()),
         app_state.sidebarWidth,
         app_state.darkMode,
-        app_state.sidebarBlurOpacity,
+        app_state.sidebarBlurOpacity if app_state.sidebarBlurEnabled else 0.0,
     )
+    apply_app_icon(app_state.appIconChoice)
 
     def handle_sidebar_width_changed() -> None:
         apply_vibrancy(
             int(window.winId()),
             app_state.sidebarWidth,
             app_state.darkMode,
-            app_state.sidebarBlurOpacity,
+            app_state.sidebarBlurOpacity if app_state.sidebarBlurEnabled else 0.0,
         )
 
     app_state.sidebarWidthChanged.connect(handle_sidebar_width_changed)
     app_state.darkModeChanged.connect(handle_sidebar_width_changed)
     app_state.sidebarBlurOpacityChanged.connect(handle_sidebar_width_changed)
+    app_state.sidebarBlurEnabledChanged.connect(handle_sidebar_width_changed)
+    app_state.appIconChoiceChanged.connect(
+        lambda: apply_app_icon(app_state.appIconChoice)
+    )
 
     return app.exec()
 

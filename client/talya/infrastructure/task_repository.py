@@ -27,7 +27,8 @@ class TaskRepository:
                     updated_at,
                     notes,
                     due_date,
-                    reminder_at
+                    reminder_at,
+                    reminder_fired_at
                 FROM tasks
                 ORDER BY created_at DESC
                 """
@@ -44,6 +45,7 @@ class TaskRepository:
                     notes=row["notes"],
                     due_date=parse_optional_datetime(row["due_date"]),
                     reminder_at=parse_optional_datetime(row["reminder_at"]),
+                    reminder_fired_at=parse_optional_datetime(row["reminder_fired_at"]),
                 )
                 for row in rows
             ]
@@ -64,9 +66,10 @@ class TaskRepository:
                     updated_at,
                     notes,
                     due_date,
-                    reminder_at
+                    reminder_at,
+                    reminder_fired_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task.id,
@@ -78,6 +81,9 @@ class TaskRepository:
                     task.notes,
                     task.due_date.isoformat() if task.due_date else None,
                     task.reminder_at.isoformat() if task.reminder_at else None,
+                    task.reminder_fired_at.isoformat()
+                    if task.reminder_fired_at
+                    else None,
                 ),
             )
             connection.commit()
@@ -160,12 +166,33 @@ class TaskRepository:
             connection.execute(
                 """
                 UPDATE tasks
-                SET reminder_at = ?, updated_at = ?
+                SET reminder_at = ?, reminder_fired_at = NULL, updated_at = ?
                 WHERE id = ?
                 """,
                 (
                     reminder_at.isoformat() if reminder_at else None,
                     updated_at.isoformat(),
+                    task_id,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def update_task_reminder_fired_at(
+        self, task_id: str, fired_at: datetime
+    ) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                UPDATE tasks
+                SET reminder_fired_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    fired_at.isoformat(),
+                    fired_at.isoformat(),
                     task_id,
                 ),
             )

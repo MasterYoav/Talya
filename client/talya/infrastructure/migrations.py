@@ -51,9 +51,25 @@ def migrate_to_v2(connection: sqlite3.Connection) -> None:
     set_schema_version(connection, 2)
 
 
+def migrate_to_v3(connection: sqlite3.Connection) -> None:
+    existing_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+
+    if "reminder_fired_at" not in existing_columns:
+        connection.execute("ALTER TABLE tasks ADD COLUMN reminder_fired_at TEXT")
+
+    connection.commit()
+    set_schema_version(connection, 3)
+
+
 def run_migrations(connection: sqlite3.Connection) -> None:
     ensure_schema_version_table(connection)
     version = get_schema_version(connection)
 
     if version < 2:
         migrate_to_v2(connection)
+        version = 2
+
+    if version < 3:
+        migrate_to_v3(connection)

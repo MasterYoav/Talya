@@ -46,6 +46,11 @@ At this stage, the app already supports:
 - account-scoped local data (per-account SQLite databases)
 - macOS vibrancy sidebar (NSVisualEffectView)
 - sidebar blur slider (saved per account)
+- per-account app icon selection (macOS dock)
+- reminder scheduling with in-app + macOS notifications
+- background reminder helper (launchd)
+
+Note: account preferences are local only; sync across devices requires a backend.
 
 ---
 
@@ -282,6 +287,46 @@ Account paths:
 Responsibilities:
 - get and set settings like `dark_mode` and `sidebar_collapsed`
 - persist `sidebar_blur_opacity`
+- persist `app_icon_choice`
+
+---
+
+### `client/talya/infrastructure/macos_app_icon.py`
+
+**Purpose:** macOS app icon switching.
+
+Responsibilities:
+- sets the dock icon based on the selected app icon pack
+
+---
+
+### `client/talya/infrastructure/macos_notifications.py`
+
+**Purpose:** macOS user notifications.
+
+Responsibilities:
+- requests notification permission
+- sends local notifications while app is running
+
+---
+
+### `client/talya/infrastructure/macos_launch_agent.py`
+
+**Purpose:** Background reminder helper installation.
+
+Responsibilities:
+- installs/removes launchd agent for reminders
+
+---
+
+### `client/talya/reminder_daemon.py`
+
+**Purpose:** Background reminder worker.
+
+Responsibilities:
+- polls account databases for due reminders
+- sends macOS notifications
+- marks reminders as fired
 
 ---
 

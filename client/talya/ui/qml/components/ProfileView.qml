@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 
 Rectangle {
     id: root
@@ -52,29 +53,29 @@ Rectangle {
             border.width: darkMode ? 0 : 1
             border.color: "#00000008"
 
-            Column {
+            ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 22
                 spacing: 16
 
-                Row {
-                    width: parent.width
-                    height: 32
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 32
 
                     Text {
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                         text: appState.isAuthenticated ? "Account" : "Sign in"
                         font.pixelSize: 20
                         font.bold: true
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
                     }
 
-                    Item { width: parent.width - 240 }
+                    Item { Layout.fillWidth: true }
 
                     Rectangle {
                         visible: !appState.isAuthenticated
-                        width: 130
-                        height: 32
+                        Layout.preferredWidth: 150
+                        Layout.preferredHeight: 32
                         radius: 10
                         color: darkMode ? "#1b1d22" : "#f3f4f8"
 
@@ -109,12 +110,13 @@ Rectangle {
                     wrapMode: Text.WordWrap
                 }
 
-                Item { width: 1; height: 1 }
+                Item { Layout.preferredHeight: 6 }
 
-                Column {
+                ColumnLayout {
                     id: authColumn
                     spacing: 12
                     visible: !appState.isAuthenticated
+                    Layout.fillWidth: true
 
                     Text {
                         text: "Email sign-in"
@@ -134,7 +136,7 @@ Rectangle {
                     TextField {
                         id: nameField
                         visible: root.registerMode
-                        width: parent.width
+                        Layout.fillWidth: true
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
                         placeholderText: "Your name"
@@ -157,7 +159,7 @@ Rectangle {
 
                     TextField {
                         id: emailField
-                        width: parent.width
+                        Layout.fillWidth: true
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
                         placeholderText: "you@example.com"
@@ -180,7 +182,7 @@ Rectangle {
 
                     TextField {
                         id: passwordField
-                        width: parent.width
+                        Layout.fillWidth: true
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
                         echoMode: TextInput.Password
@@ -195,14 +197,14 @@ Rectangle {
                         }
                     }
 
-                    Row {
-                        width: parent.width
-                        height: 44
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
                         spacing: 12
 
                         Rectangle {
-                            width: 160
-                            height: 44
+                            Layout.preferredWidth: 160
+                            Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#1a1e27" : "#eaf0ff"
 
@@ -227,16 +229,23 @@ Rectangle {
                             }
                         }
 
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "OAuth sign-in"
-                            font.pixelSize: 12
-                            color: darkMode ? "#8e8e93" : "#6e6e73"
-                        }
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    Text {
+                        text: "OAuth sign-in"
+                        font.pixelSize: 12
+                        color: darkMode ? "#8e8e93" : "#6e6e73"
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
+                        spacing: 12
 
                         Rectangle {
-                            width: 170
-                            height: 44
+                            Layout.preferredWidth: 170
+                            Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#1b1d22" : "#f3f4f8"
 
@@ -255,8 +264,8 @@ Rectangle {
                         }
 
                         Rectangle {
-                            width: 170
-                            height: 44
+                            Layout.preferredWidth: 170
+                            Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#1b1d22" : "#f3f4f8"
 
@@ -282,10 +291,11 @@ Rectangle {
                     }
                 }
 
-                Column {
+                ColumnLayout {
                     id: profileColumn
                     spacing: 12
                     visible: appState.isAuthenticated
+                    Layout.fillWidth: true
 
                     Text {
                         text: "Name"
@@ -296,7 +306,7 @@ Rectangle {
 
                     TextField {
                         id: profileNameField
-                        width: parent.width
+                        Layout.fillWidth: true
                         text: appState.userName
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
@@ -318,7 +328,7 @@ Rectangle {
 
                     TextField {
                         id: profileEmailField
-                        width: parent.width
+                        Layout.fillWidth: true
                         text: appState.userEmail
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
@@ -331,13 +341,13 @@ Rectangle {
                         }
                     }
 
-                    Row {
-                        width: parent.width
-                        height: 44
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
 
                         Rectangle {
-                            width: 120
-                            height: 44
+                            Layout.preferredWidth: 120
+                            Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#1a1e27" : "#eaf0ff"
 
@@ -356,11 +366,11 @@ Rectangle {
                             }
                         }
 
-                        Item { width: parent.width - 240 }
+                        Item { Layout.fillWidth: true }
 
                         Rectangle {
-                            width: 120
-                            height: 44
+                            Layout.preferredWidth: 120
+                            Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#3a171b" : "#ffe9ec"
 

@@ -111,12 +111,22 @@ class TaskService:
         for task in self._tasks:
             if task.id == task_id:
                 task.reminder_at = reminder_at
+                task.reminder_fired_at = None
                 task.updated_at = datetime.now()
                 self._repository.update_task_reminder_at(
                     task.id,
                     task.reminder_at,
                     task.updated_at,
                 )
+                return True
+        return False
+
+    def mark_reminder_fired(self, task_id: str, fired_at: datetime) -> bool:
+        for task in self._tasks:
+            if task.id == task_id:
+                task.reminder_fired_at = fired_at
+                task.updated_at = fired_at
+                self._repository.update_task_reminder_fired_at(task.id, fired_at)
                 return True
         return False
 

@@ -3,12 +3,17 @@ import hashlib
 from pathlib import Path
 import threading
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot, QTimer
 
 from talya.services.auth_service import AuthService
 
 from talya.infrastructure.database import initialize_database, set_database_path
 from talya.infrastructure.settings_repository import SettingsRepository
+from talya.infrastructure.macos_notifications import send_notification
+from talya.infrastructure.macos_launch_agent import (
+    install_launch_agent,
+    uninstall_launch_agent,
+)
 from talya.services.task_service import TaskService
 
 
@@ -26,6 +31,10 @@ class AppState(QObject):
     authStatusMessage = Signal(str)
     sidebarWidthChanged = Signal()
     sidebarBlurOpacityChanged = Signal()
+    appIconChoiceChanged = Signal()
+    reminderSettingsChanged = Signal()
+    bannerChanged = Signal()
+    sidebarBlurEnabledChanged = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -44,6 +53,13 @@ class AppState(QObject):
         self._auth_error = ""
         self._auth_status = ""
         self._sidebar_blur_opacity = 0.7
+        self._sidebar_blur_enabled = True
+        self._app_icon_choice = "dark"
+        self._reminder_notify_app = True
+        self._reminder_notify_system = True
+        self._reminder_notify_background = True
+        self._banner_message = ""
+        self._banner_visible = False
         self.authResult.connect(self._handle_auth_result)
         self.authStatusMessage.connect(self._handle_auth_status)
         cached_profile = self._auth_service.load_cached_profile()
@@ -53,6 +69,7 @@ class AppState(QObject):
                 cached_profile.get("name", ""),
                 cached_profile.get("email", ""),
             )
+        self._start_reminder_timer()
 
     @Property(str, notify=currentSectionChanged)
     def currentSection(self) -> str:
@@ -125,6 +142,34 @@ class AppState(QObject):
     def sidebarBlurOpacity(self) -> float:
         return self._sidebar_blur_opacity
 
+    @Property(bool, notify=sidebarBlurEnabledChanged)
+    def sidebarBlurEnabled(self) -> bool:
+        return self._sidebar_blur_enabled
+
+    @Property(str, notify=appIconChoiceChanged)
+    def appIconChoice(self) -> str:
+        return self._app_icon_choice
+
+    @Property(bool, notify=reminderSettingsChanged)
+    def reminderNotifyApp(self) -> bool:
+        return self._reminder_notify_app
+
+    @Property(bool, notify=reminderSettingsChanged)
+    def reminderNotifySystem(self) -> bool:
+        return self._reminder_notify_system
+
+    @Property(bool, notify=reminderSettingsChanged)
+    def reminderNotifyBackground(self) -> bool:
+        return self._reminder_notify_background
+
+    @Property(str, notify=bannerChanged)
+    def bannerMessage(self) -> str:
+        return self._banner_message
+
+    @Property(bool, notify=bannerChanged)
+    def bannerVisible(self) -> bool:
+        return self._banner_visible
+
     @Property(bool, notify=editModeChanged)
     def editMode(self) -> bool:
         return self._edit_mode
@@ -185,6 +230,13 @@ class AppState(QObject):
         dark_mode = self._settings_repository.get("dark_mode")
         sidebar_collapsed = self._settings_repository.get("sidebar_collapsed")
         sidebar_blur_opacity = self._settings_repository.get("sidebar_blur_opacity")
+        sidebar_blur_enabled = self._settings_repository.get("sidebar_blur_enabled")
+        app_icon_choice = self._settings_repository.get("app_icon_choice")
+        reminder_notify_app = self._settings_repository.get("reminder_notify_app")
+        reminder_notify_system = self._settings_repository.get("reminder_notify_system")
+        reminder_notify_background = self._settings_repository.get(
+            "reminder_notify_background"
+        )
         self._dark_mode = dark_mode == "1"
         self._sidebar_collapsed = sidebar_collapsed == "1"
         if sidebar_blur_opacity is not None:
@@ -192,9 +244,25 @@ class AppState(QObject):
                 self._sidebar_blur_opacity = float(sidebar_blur_opacity)
             except ValueError:
                 self._sidebar_blur_opacity = 0.7
+        if sidebar_blur_enabled is not None:
+            self._sidebar_blur_enabled = sidebar_blur_enabled == "1"
+        if app_icon_choice in {"dark", "light"}:
+            self._app_icon_choice = app_icon_choice
+        if reminder_notify_app is not None:
+            self._reminder_notify_app = reminder_notify_app == "1"
+        if reminder_notify_system is not None:
+            self._reminder_notify_system = reminder_notify_system == "1"
+        if reminder_notify_background is not None:
+            self._reminder_notify_background = reminder_notify_background == "1"
         self.darkModeChanged.emit()
         self.sidebarCollapsedChanged.emit()
         self.sidebarBlurOpacityChanged.emit()
+        self.sidebarBlurEnabledChanged.emit()
+        self.appIconChoiceChanged.emit()
+        self.reminderSettingsChanged.emit()
+        if self._reminder_notify_background:
+            project_root = Path(__file__).resolve().parents[2]
+            install_launch_agent(project_root)
 
     def _save_setting(self, key: str, value: str) -> None:
         self._settings_repository.set(key, value)
@@ -339,12 +407,102 @@ class AppState(QObject):
         self._save_setting("sidebar_blur_opacity", f"{self._sidebar_blur_opacity:.3f}")
         self.sidebarBlurOpacityChanged.emit()
 
+    @Slot(bool)
+    def setSidebarBlurEnabled(self, value: bool) -> None:
+        if self._sidebar_blur_enabled == value:
+            return
+        self._sidebar_blur_enabled = value
+        self._save_setting("sidebar_blur_enabled", "1" if value else "0")
+        self.sidebarBlurEnabledChanged.emit()
+
+    @Slot(str)
+    def setAppIconChoice(self, value: str) -> None:
+        if value not in {"dark", "light"}:
+            return
+        if value == self._app_icon_choice:
+            return
+        self._app_icon_choice = value
+        self._save_setting("app_icon_choice", value)
+        self.appIconChoiceChanged.emit()
+
+    @Slot(bool)
+    def setReminderNotifyApp(self, value: bool) -> None:
+        if self._reminder_notify_app == value:
+            return
+        self._reminder_notify_app = value
+        self._save_setting("reminder_notify_app", "1" if value else "0")
+        self.reminderSettingsChanged.emit()
+
+    @Slot(bool)
+    def setReminderNotifySystem(self, value: bool) -> None:
+        if self._reminder_notify_system == value:
+            return
+        self._reminder_notify_system = value
+        self._save_setting("reminder_notify_system", "1" if value else "0")
+        self.reminderSettingsChanged.emit()
+
+    @Slot(bool)
+    def setReminderNotifyBackground(self, value: bool) -> None:
+        if self._reminder_notify_background == value:
+            return
+        self._reminder_notify_background = value
+        self._save_setting("reminder_notify_background", "1" if value else "0")
+        project_root = Path(__file__).resolve().parents[2]
+        if value:
+            install_launch_agent(project_root)
+        else:
+            uninstall_launch_agent()
+        self.reminderSettingsChanged.emit()
+
     @Slot()
     def toggleEditMode(self) -> None:
         self._edit_mode = not self._edit_mode
         self.editModeChanged.emit()
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
+
+    def _start_reminder_timer(self) -> None:
+        self._reminder_timer = QTimer(self)
+        self._reminder_timer.setInterval(30000)
+        self._reminder_timer.timeout.connect(self._check_due_reminders)
+        self._reminder_timer.start()
+
+    def _check_due_reminders(self) -> None:
+        if self._task_service is None:
+            return
+        now = datetime.now()
+        tasks = self._task_service.list_tasks()
+        for task in tasks:
+            if task.is_completed:
+                continue
+            if task.reminder_at is None:
+                continue
+            if task.reminder_at > now:
+                continue
+            if task.reminder_fired_at is not None:
+                continue
+
+            title = task.title
+            body = "Reminder"
+
+            if self._reminder_notify_app:
+                self._banner_message = f"{title}"
+                self._banner_visible = True
+                self.bannerChanged.emit()
+
+            if self._reminder_notify_system:
+                send_notification(title, body)
+
+            self._task_service.mark_reminder_fired(task.id, now)
+
+        if self._banner_visible:
+            QTimer.singleShot(5000, self._hide_banner)
+
+    def _hide_banner(self) -> None:
+        if not self._banner_visible:
+            return
+        self._banner_visible = False
+        self.bannerChanged.emit()
 
     def _set_auth_error(self, message: str) -> None:
         if self._auth_error == message:

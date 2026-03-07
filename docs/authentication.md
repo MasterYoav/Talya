@@ -17,7 +17,7 @@ local callback.
 
 ## Config
 
-Set these environment variables:
+Set these environment variables (use `.env` based on `.env.example`):
 
 - `TALYA_GOOGLE_CLIENT_ID`
 - `TALYA_GOOGLE_CLIENT_SECRET`

@@ -36,6 +36,31 @@ Rectangle {
         collapsed: appState.sidebarCollapsed
     }
 
+    Rectangle {
+        width: 320
+        height: appState.bannerVisible ? 56 : 0
+        radius: 16
+        color: appState.darkMode ? "#16181d" : "#ffffff"
+        border.width: appState.darkMode ? 0 : 1
+        border.color: "#00000012"
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 18
+        visible: appState.bannerVisible
+        z: 20
+
+        Behavior on height {
+            NumberAnimation { duration: 160 }
+        }
+
+        Text {
+            anchors.centerIn: parent
+            text: appState.bannerMessage
+            font.pixelSize: 14
+            color: appState.darkMode ? "#f2f2f7" : "#1c1c1e"
+        }
+    }
+
     Component {
         id: tasksViewComponent
 
