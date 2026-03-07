@@ -10,7 +10,7 @@ ApplicationWindow {
     visible: true
     title: "Talya"
 
-    color: "#f3f2ee"
+    color: "transparent"
 
     AppShell {
         anchors.fill: parent

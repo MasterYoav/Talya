@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -7,7 +8,14 @@ Rectangle {
     property bool darkMode: false
     property int sidebarWidth: 272
 
-    color: darkMode ? "#050505" : "#f6f7fb"
+    color: "transparent"
+
+    Rectangle {
+        x: sidebarWidth
+        width: parent.width - sidebarWidth
+        height: parent.height
+        color: darkMode ? "#050505" : "#f6f7fb"
+    }
 
     Column {
         anchors.fill: parent
@@ -58,81 +66,107 @@ Rectangle {
 
                 Rectangle {
                     width: parent.width
-                    height: 82
+                    height: 200
                     radius: 18
                     color: darkMode ? "#14161a" : "#f4f6fb"
                     border.width: darkMode ? 0 : 1
                     border.color: "#00000006"
 
-                    Row {
+                    Column {
                         anchors.fill: parent
                         anchors.margins: 14
-                        spacing: 12
+                        spacing: 16
 
-                        Rectangle {
-                            width: 140
-                            height: parent.height
-                            radius: 14
-                            color: !appState.darkMode
-                                   ? (darkMode ? "#1b1f28" : "#ffffff")
-                                   : "transparent"
-                            border.width: (!appState.darkMode && !darkMode) ? 1 : 0
-                            border.color: "#00000008"
+                        Row {
+                            width: parent.width
+                            height: 64
+                            spacing: 12
 
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 8
+                            Rectangle {
+                                width: 140
+                                height: parent.height
+                                radius: 14
+                                color: !appState.darkMode
+                                       ? (darkMode ? "#1b1f28" : "#ffffff")
+                                       : "transparent"
+                                border.width: (!appState.darkMode && !darkMode) ? 1 : 0
+                                border.color: "#00000008"
 
-                                Text {
-                                    text: "☀"
-                                    font.pixelSize: 18
-                                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 8
+
+                                    Text {
+                                        text: "☀"
+                                        font.pixelSize: 18
+                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                    }
+
+                                    Text {
+                                        text: "Light"
+                                        font.pixelSize: 16
+                                        font.bold: !appState.darkMode
+                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                    }
                                 }
 
-                                Text {
-                                    text: "Light"
-                                    font.pixelSize: 16
-                                    font.bold: !appState.darkMode
-                                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: appState.setLightMode()
                                 }
                             }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: appState.setLightMode()
+                            Rectangle {
+                                width: 140
+                                height: parent.height
+                                radius: 14
+                                color: appState.darkMode ? "#1b1f28" : "transparent"
+                                border.width: 0
+
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 8
+
+                                    Text {
+                                        text: "☾"
+                                        font.pixelSize: 18
+                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                    }
+
+                                    Text {
+                                        text: "Dark"
+                                        font.pixelSize: 16
+                                        font.bold: appState.darkMode
+                                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: appState.setDarkMode()
+                                }
                             }
                         }
 
-                        Rectangle {
-                            width: 140
-                            height: parent.height
-                            radius: 14
-                            color: appState.darkMode ? "#1b1f28" : "transparent"
-                            border.width: 0
+                        Column {
+                            width: parent.width
+                            spacing: 10
 
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    text: "☾"
-                                    font.pixelSize: 18
-                                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                                }
-
-                                Text {
-                                    text: "Dark"
-                                    font.pixelSize: 16
-                                    font.bold: appState.darkMode
-                                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                                }
+                            Text {
+                                text: "Sidebar Blur"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: darkMode ? "#c7c7cc" : "#4b5563"
                             }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: appState.setDarkMode()
+                            Slider {
+                                id: blurSlider
+                                from: 0.0
+                                to: 1.0
+                                value: appState.sidebarBlurOpacity
+                                onMoved: appState.setSidebarBlurOpacity(value)
                             }
                         }
                     }

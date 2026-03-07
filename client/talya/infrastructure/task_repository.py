@@ -131,6 +131,48 @@ class TaskRepository:
         finally:
             connection.close()
 
+    def update_task_due_date(
+        self, task_id: str, due_date: datetime | None, updated_at: datetime
+    ) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                UPDATE tasks
+                SET due_date = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    due_date.isoformat() if due_date else None,
+                    updated_at.isoformat(),
+                    task_id,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def update_task_reminder_at(
+        self, task_id: str, reminder_at: datetime | None, updated_at: datetime
+    ) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                UPDATE tasks
+                SET reminder_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    reminder_at.isoformat() if reminder_at else None,
+                    updated_at.isoformat(),
+                    task_id,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
     def delete_task(self, task_id: str) -> None:
         connection = create_connection()
         try:

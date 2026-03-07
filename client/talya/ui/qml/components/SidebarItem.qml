@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 
 Rectangle {
     id: root
@@ -10,14 +11,19 @@ Rectangle {
     property bool darkMode: false
     signal clicked
 
-    height: 42
-    radius: 12
+    height: root.collapsed ? 36 : 42
+    radius: root.collapsed ? 10 : 12
+    width: root.collapsed ? 36 : parent.width
+
+    Layout.preferredWidth: root.collapsed ? 36 : -1
+    Layout.fillWidth: !root.collapsed
+    Layout.alignment: root.collapsed ? Qt.AlignHCenter : Qt.AlignLeft
 
     color: selected
-           ? (darkMode ? "#18ffffff" : "#ccffffff")
+           ? (darkMode ? "#2affffff" : "#ffd7cd")
            : (mouseArea.containsMouse
-              ? (darkMode ? "#0dffffff" : "#88ffffff")
-              : "transparent")
+              ? (darkMode ? "#1affffff" : "#ffe6de")
+              : (darkMode ? "#12000000" : "#ffecea"))
 
     border.width: 0
     border.color: "transparent"
@@ -36,7 +42,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: root.iconText
             font.pixelSize: 16
-            color: root.darkMode ? "#f2f2f7" : "#1c1c1e"
+            color: root.darkMode ? "#f2f2f7" : "#6b3a34"
         }
 
         Text {
@@ -45,7 +51,7 @@ Rectangle {
             text: root.label
             font.pixelSize: 18
             font.bold: root.selected
-            color: root.darkMode ? "#f2f2f7" : "#1c1c1e"
+            color: root.darkMode ? "#f2f2f7" : "#6b3a34"
         }
     }
 

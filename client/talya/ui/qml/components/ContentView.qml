@@ -7,7 +7,14 @@ Rectangle {
     property bool darkMode: false
     property int sidebarWidth: 272
 
-    color: darkMode ? "#050505" : "#f6f7fb"
+    color: "transparent"
+
+    Rectangle {
+        x: sidebarWidth
+        width: parent.width - sidebarWidth
+        height: parent.height
+        color: darkMode ? "#050505" : "#f6f7fb"
+    }
 
     Column {
         anchors.fill: parent
@@ -258,7 +265,7 @@ Rectangle {
         focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         width: 520
-        height: 520
+        height: 620
         anchors.centerIn: parent
         padding: 0
 
@@ -275,14 +282,71 @@ Rectangle {
 
         property string draftTitle: ""
         property string draftNotes: ""
+        property string draftDueDate: ""
+        property string draftReminderAt: ""
+
+        function parseDateString(value) {
+            if (!value)
+                return null
+            const parts = value.split("-")
+            if (parts.length < 3)
+                return null
+            const year = Number(parts[0])
+            const month = Number(parts[1]) - 1
+            const day = Number(parts[2])
+            if (!year || month < 0 || day <= 0)
+                return null
+            return new Date(year, month, day)
+        }
+
+        function parseReminderDate(value) {
+            if (!value)
+                return null
+            const parts = value.split(" ")
+            if (parts.length < 2)
+                return null
+            return parseDateString(parts[0])
+        }
+
+        function parseReminderTime(value) {
+            if (!value)
+                return null
+            const parts = value.split(" ")
+            if (parts.length < 2)
+                return null
+            const timeParts = parts[1].split(":")
+            if (timeParts.length < 2)
+                return null
+            const hours = Number(timeParts[0])
+            const minutes = Number(timeParts[1])
+            if (hours < 0 || minutes < 0)
+                return null
+            return { hours: hours, minutes: minutes }
+        }
+
+        function pad2(value) {
+            return value < 10 ? "0" + value : "" + value
+        }
+
+        function daysInMonth(year, month) {
+            return new Date(year, month, 0).getDate()
+        }
 
         function loadFromSelectedTask() {
             if (appState.hasSelectedTask) {
                 draftTitle = appState.selectedTask.title || ""
                 draftNotes = appState.selectedTask.notes || ""
+                draftDueDate = appState.selectedTask.dueDate
+                               ? appState.selectedTask.dueDate.slice(0, 10)
+                               : ""
+                draftReminderAt = appState.selectedTask.reminderAt
+                                  ? appState.selectedTask.reminderAt.replace("T", " ").slice(0, 16)
+                                  : ""
             } else {
                 draftTitle = ""
                 draftNotes = ""
+                draftDueDate = ""
+                draftReminderAt = ""
             }
         }
 
@@ -393,6 +457,380 @@ Rectangle {
                 }
             }
 
+            Row {
+                width: parent.width
+                height: 66
+                spacing: 14
+
+                Column {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        text: "Due date"
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: darkMode ? "#c7c7cc" : "#4b5563"
+                    }
+
+                    Rectangle {
+                        id: detailDueDateField
+                        width: parent.width
+                        height: 40
+                        radius: 12
+                        color: darkMode ? "#15161a" : "#f4f7ff"
+                        border.width: darkMode ? 0 : 1
+                        border.color: "#00000008"
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            text: taskDetailsPopup.draftDueDate
+                                  ? taskDetailsPopup.draftDueDate
+                                  : "Set due date"
+                            font.pixelSize: 16
+                            color: taskDetailsPopup.draftDueDate
+                                   ? (darkMode ? "#f2f2f7" : "#1c1c1e")
+                                   : (darkMode ? "#6e6e73" : "#9aa1ad")
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: dueDatePopup.open()
+                        }
+                    }
+                }
+
+                Column {
+                    width: (parent.width - 14) / 2
+                    spacing: 8
+
+                    Text {
+                        text: "Reminder"
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: darkMode ? "#c7c7cc" : "#4b5563"
+                    }
+
+                    Rectangle {
+                        id: detailReminderField
+                        width: parent.width
+                        height: 40
+                        radius: 12
+                        color: darkMode ? "#15161a" : "#f4f7ff"
+                        border.width: darkMode ? 0 : 1
+                        border.color: "#00000008"
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            text: taskDetailsPopup.draftReminderAt
+                                  ? taskDetailsPopup.draftReminderAt
+                                  : "Set reminder"
+                            font.pixelSize: 16
+                            color: taskDetailsPopup.draftReminderAt
+                                   ? (darkMode ? "#f2f2f7" : "#1c1c1e")
+                                   : (darkMode ? "#6e6e73" : "#9aa1ad")
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: reminderPopup.open()
+                        }
+                    }
+                }
+            }
+
+            Popup {
+                id: dueDatePopup
+                modal: true
+                focus: true
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                width: 360
+                height: 360
+                anchors.centerIn: parent
+
+                background: Rectangle {
+                    radius: 18
+                    color: darkMode ? "#0b0c0f" : "#ffffff"
+                    border.width: darkMode ? 0 : 1
+                    border.color: "#00000008"
+                }
+
+                onOpened: {
+                    const parsed = taskDetailsPopup.parseDateString(taskDetailsPopup.draftDueDate)
+                    if (parsed) {
+                        dueYearSpin.value = parsed.getFullYear()
+                        dueMonthSpin.value = parsed.getMonth() + 1
+                        dueDaySpin.value = parsed.getDate()
+                    } else {
+                        const today = new Date()
+                        dueYearSpin.value = today.getFullYear()
+                        dueMonthSpin.value = today.getMonth() + 1
+                        dueDaySpin.value = today.getDate()
+                    }
+                }
+
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 12
+
+                    Text {
+                        text: "Pick due date"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+
+                        SpinBox {
+                            id: dueYearSpin
+                            from: 2000
+                            to: 2100
+                            editable: true
+                        }
+
+                        SpinBox {
+                            id: dueMonthSpin
+                            from: 1
+                            to: 12
+                            editable: true
+                        }
+
+                        SpinBox {
+                            id: dueDaySpin
+                            from: 1
+                            to: taskDetailsPopup.daysInMonth(dueYearSpin.value, dueMonthSpin.value)
+                            editable: true
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        height: 40
+
+                        Rectangle {
+                            width: 96
+                            height: 40
+                            radius: 12
+                            color: darkMode ? "#1b1d22" : "#f3f4f8"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Clear"
+                                font.pixelSize: 14
+                                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    taskDetailsPopup.draftDueDate = ""
+                                    dueDatePopup.close()
+                                }
+                            }
+                        }
+
+                        Item { width: parent.width - 204 }
+
+                        Rectangle {
+                            width: 96
+                            height: 40
+                            radius: 12
+                            color: darkMode ? "#1a1e27" : "#eaf0ff"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Set"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    taskDetailsPopup.draftDueDate =
+                                        dueYearSpin.value + "-" +
+                                        taskDetailsPopup.pad2(dueMonthSpin.value) + "-" +
+                                        taskDetailsPopup.pad2(dueDaySpin.value)
+                                    dueDatePopup.close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Popup {
+                id: reminderPopup
+                modal: true
+                focus: true
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+                width: 380
+                height: 430
+                anchors.centerIn: parent
+
+                background: Rectangle {
+                    radius: 18
+                    color: darkMode ? "#0b0c0f" : "#ffffff"
+                    border.width: darkMode ? 0 : 1
+                    border.color: "#00000008"
+                }
+
+                onOpened: {
+                    const parsedDate = taskDetailsPopup.parseReminderDate(taskDetailsPopup.draftReminderAt)
+                    const parsedTime = taskDetailsPopup.parseReminderTime(taskDetailsPopup.draftReminderAt)
+                    if (parsedDate) {
+                        reminderYearSpin.value = parsedDate.getFullYear()
+                        reminderMonthSpin.value = parsedDate.getMonth() + 1
+                        reminderDaySpin.value = parsedDate.getDate()
+                    } else {
+                        const today = new Date()
+                        reminderYearSpin.value = today.getFullYear()
+                        reminderMonthSpin.value = today.getMonth() + 1
+                        reminderDaySpin.value = today.getDate()
+                    }
+                    if (parsedTime) {
+                        reminderHourSpin.value = parsedTime.hours
+                        reminderMinuteSpin.value = parsedTime.minutes
+                    } else {
+                        const now = new Date()
+                        reminderHourSpin.value = now.getHours()
+                        reminderMinuteSpin.value = now.getMinutes()
+                    }
+                }
+
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 12
+
+                    Text {
+                        text: "Pick reminder"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+
+                        SpinBox {
+                            id: reminderYearSpin
+                            from: 2000
+                            to: 2100
+                            editable: true
+                        }
+
+                        SpinBox {
+                            id: reminderMonthSpin
+                            from: 1
+                            to: 12
+                            editable: true
+                        }
+
+                        SpinBox {
+                            id: reminderDaySpin
+                            from: 1
+                            to: taskDetailsPopup.daysInMonth(reminderYearSpin.value, reminderMonthSpin.value)
+                            editable: true
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: 12
+
+                        SpinBox {
+                            id: reminderHourSpin
+                            from: 0
+                            to: 23
+                            editable: true
+                        }
+
+                        SpinBox {
+                            id: reminderMinuteSpin
+                            from: 0
+                            to: 59
+                            editable: true
+                        }
+                    }
+
+                    Row {
+                        width: parent.width
+                        height: 40
+
+                        Rectangle {
+                            width: 96
+                            height: 40
+                            radius: 12
+                            color: darkMode ? "#1b1d22" : "#f3f4f8"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Clear"
+                                font.pixelSize: 14
+                                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    taskDetailsPopup.draftReminderAt = ""
+                                    reminderPopup.close()
+                                }
+                            }
+                        }
+
+                        Item { width: parent.width - 204 }
+
+                        Rectangle {
+                            width: 96
+                            height: 40
+                            radius: 12
+                            color: darkMode ? "#1a1e27" : "#eaf0ff"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Set"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    const dateText =
+                                        reminderYearSpin.value + "-" +
+                                        taskDetailsPopup.pad2(reminderMonthSpin.value) + "-" +
+                                        taskDetailsPopup.pad2(reminderDaySpin.value)
+                                    const timeText =
+                                        taskDetailsPopup.pad2(reminderHourSpin.value) + ":" +
+                                        taskDetailsPopup.pad2(reminderMinuteSpin.value)
+                                    taskDetailsPopup.draftReminderAt = dateText + " " + timeText
+                                    reminderPopup.close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Rectangle {
                 width: parent.width
                 height: 82
@@ -458,7 +896,11 @@ Rectangle {
                                 const taskId = appState.selectedTask.id
                                 const newTitle = taskDetailsPopup.draftTitle
                                 const newNotes = taskDetailsPopup.draftNotes
+                                const newDueDate = taskDetailsPopup.draftDueDate
+                                const newReminderAt = taskDetailsPopup.draftReminderAt
 
+                                appState.updateTaskDueDate(taskId, newDueDate)
+                                appState.updateTaskReminderAt(taskId, newReminderAt)
                                 appState.updateTaskNotes(taskId, newNotes)
                                 appState.updateTaskTitle(taskId, newTitle)
                             }

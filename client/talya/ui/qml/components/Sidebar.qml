@@ -7,69 +7,67 @@ Rectangle {
     property bool darkMode: false
     property bool collapsed: false
 
-    color: darkMode ? "#660b0c10" : "#99ffffff"
-    border.width: darkMode ? 0 : 1
-    border.color: "#ffffffaa"
+    color: "transparent"
+    border.width: 0
     radius: 0
 
-    Rectangle {
-        anchors.fill: parent
-        color: darkMode ? "#14000000" : "#22ffffff"
+    readonly property int bannerHeight: root.collapsed ? 0 : 110
+
+    Image {
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: root.bannerHeight
+        source: darkMode
+                ? Qt.resolvedUrl("../../../../../media/dark_2k_banner.png")
+                : Qt.resolvedUrl("../../../../../media/2k_banner.png")
+        fillMode: Image.PreserveAspectCrop
+        visible: !root.collapsed
+        z: 3
     }
 
     Rectangle {
+        anchors.fill: parent
+        color: darkMode ? "transparent" : "#22ffffff"
+        z: 1
+    }
+
+    Rectangle {
+        id: collapseButton
+        anchors.left: parent.left
+        anchors.leftMargin: 12
         anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        width: 1
-        color: darkMode ? "#1affffff" : "#40ffffff"
+        anchors.topMargin: 12
+        width: 36
+        height: 36
+        radius: 10
+        color: darkMode ? "#33ffffff" : "#ffe4dd"
+        border.width: darkMode ? 1 : 0
+        border.color: darkMode ? "#55ffffff" : "transparent"
+        z: 4
+
+        Text {
+            anchors.centerIn: parent
+            text: "≡"
+            font.pixelSize: 18
+            color: darkMode ? "#f2f2f7" : "#6b3a34"
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: appState.toggleSidebarCollapsed()
+        }
     }
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 44
-            spacing: 12
-
-            Rectangle {
-                width: 42
-                height: 42
-                radius: 12
-                color: darkMode ? "#14ffffff" : "#ccffffff"
-                border.width: darkMode ? 0 : 1
-                border.color: "#ffffffcc"
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "≡"
-                    font.pixelSize: 18
-                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: appState.toggleSidebarCollapsed()
-                }
-            }
-
-            Text {
-                visible: !root.collapsed
-                text: "Talya"
-                font.pixelSize: 28
-                font.bold: true
-                color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-        }
+        anchors.leftMargin: 12
+        anchors.rightMargin: 12
+        anchors.topMargin: root.collapsed ? 60 : (root.bannerHeight + 12)
+        anchors.bottomMargin: 12
+        spacing: root.collapsed ? 10 : 12
+        z: 3
 
         Item { Layout.preferredHeight: 8 }
 
