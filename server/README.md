@@ -4,6 +4,8 @@ Backend API built with FastAPI and PostgreSQL.
 
 ## Quick start (dev)
 
+Use Python 3.12 (recommended). Python 3.14 is not supported by SQLAlchemy yet.
+
 1. Create a PostgreSQL database named `talya`.
 2. Set env vars (or use a `.env` file):
 
