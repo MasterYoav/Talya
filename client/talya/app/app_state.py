@@ -72,6 +72,7 @@ class AppState(QObject):
         self._banner_visible = False
         self._sync_logs: list[dict] = []
         self._sync_timer: QTimer | None = None
+        self._sync_interval_timer: QTimer | None = None
         self.authResult.connect(self._handle_auth_result)
         self.authStatusMessage.connect(self._handle_auth_status)
         cached_profile = self._auth_service.load_cached_profile()
@@ -82,6 +83,7 @@ class AppState(QObject):
                 cached_profile.get("email", ""),
             )
         self._start_reminder_timer()
+        self._start_sync_interval()
 
     @Property(str, notify=currentSectionChanged)
     def currentSection(self) -> str:
@@ -818,6 +820,14 @@ class AppState(QObject):
             daemon=True,
         )
         thread.start()
+
+    def _start_sync_interval(self) -> None:
+        if self._sync_interval_timer is not None:
+            return
+        self._sync_interval_timer = QTimer(self)
+        self._sync_interval_timer.setInterval(300000)
+        self._sync_interval_timer.timeout.connect(self._start_sync)
+        self._sync_interval_timer.start()
 
     def _run_sync(self, provider: str, provider_user_id: str, access_token: str) -> None:
         try:
