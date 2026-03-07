@@ -5,11 +5,17 @@ Backend API built with FastAPI and PostgreSQL.
 ## Quick start (dev)
 
 1. Create a PostgreSQL database named `talya`.
-2. Set env vars:
+2. Set env vars (or use a `.env` file):
 
 ```bash
 export TALYA_DATABASE_URL="postgresql+psycopg://talya:talya@localhost:5432/talya"
 export TALYA_JWT_SECRET="change-me"
+```
+
+To generate a strong JWT secret:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
 3. Install dependencies:
