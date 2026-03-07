@@ -170,14 +170,23 @@ class AuthService:
 
         name = profile.get("name", "").strip() or "Google User"
         email = profile.get("email", "").strip()
+        provider_user_id = str(profile.get("sub", "")).strip()
 
         self._token_store.save("google_tokens", tokens)
         self._token_store.save("profile", {"name": name, "email": email})
+        self._token_store.save(
+            "identity",
+            {
+                "provider": "google",
+                "provider_user_id": provider_user_id,
+            },
+        )
 
         return {
             "name": name,
             "email": email,
             "provider": "google",
+            "provider_user_id": provider_user_id,
             "account_id": email or name,
         }
 
@@ -343,6 +352,7 @@ class AuthService:
 
         name = (profile.get("name") or profile.get("login") or "GitHub User").strip()
         email = (profile.get("email") or "").strip()
+        provider_user_id = str(profile.get("id") or "").strip()
 
         if not email:
             emails_response = requests.get(
@@ -368,16 +378,27 @@ class AuthService:
 
         self._token_store.save("github_tokens", tokens)
         self._token_store.save("profile", {"name": name, "email": email})
+        self._token_store.save(
+            "identity",
+            {
+                "provider": "github",
+                "provider_user_id": provider_user_id,
+            },
+        )
 
         return {
             "name": name,
             "email": email,
             "provider": "github",
+            "provider_user_id": provider_user_id,
             "account_id": email or name,
         }
 
     def load_cached_profile(self) -> dict | None:
         return self._token_store.load("profile")
+
+    def load_cached_identity(self) -> dict | None:
+        return self._token_store.load("identity")
 
     def save_profile(self, name: str, email: str) -> None:
         self._token_store.save("profile", {"name": name, "email": email})
@@ -386,6 +407,8 @@ class AuthService:
         self._token_store.clear("profile")
         self._token_store.clear("google_tokens")
         self._token_store.clear("github_tokens")
+        self._token_store.clear("identity")
+        self._token_store.clear("server_token")
 
     @staticmethod
     def _generate_code_verifier() -> str:

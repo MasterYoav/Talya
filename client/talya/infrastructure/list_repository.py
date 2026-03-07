@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import sqlite3
 from uuid import uuid4
 
 from talya.domain.sidebar_list import SidebarList
@@ -8,6 +9,12 @@ from talya.infrastructure.database import create_connection
 
 
 class ListRepository:
+    @staticmethod
+    def _parse_optional_datetime(value: str | None) -> datetime | None:
+        if value is None:
+            return None
+        return datetime.fromisoformat(value)
+
     def list_lists(self) -> list[SidebarList]:
         connection = create_connection()
         try:
@@ -21,8 +28,13 @@ class ListRepository:
                     position,
                     list_type,
                     is_system,
-                    is_pinned
+                    is_pinned,
+                    is_deleted,
+                    deleted_at,
+                    created_at,
+                    updated_at
                 FROM lists
+                WHERE is_deleted = 0
                 ORDER BY is_pinned DESC, position ASC, created_at ASC
                 """
             ).fetchall()
@@ -36,9 +48,38 @@ class ListRepository:
                     list_type=row["list_type"],
                     is_system=bool(row["is_system"]),
                     is_pinned=bool(row["is_pinned"]),
+                    is_deleted=bool(row["is_deleted"]),
+                    deleted_at=self._parse_optional_datetime(row["deleted_at"]),
+                    created_at=self._parse_optional_datetime(row["created_at"]),
+                    updated_at=self._parse_optional_datetime(row["updated_at"]),
                 )
                 for row in rows
             ]
+        finally:
+            connection.close()
+
+    def list_all_lists(self) -> list[sqlite3.Row]:
+        connection = create_connection()
+        try:
+            return connection.execute(
+                """
+                SELECT
+                    id,
+                    name,
+                    icon,
+                    color,
+                    position,
+                    list_type,
+                    is_system,
+                    is_pinned,
+                    is_deleted,
+                    deleted_at,
+                    created_at,
+                    updated_at
+                FROM lists
+                ORDER BY updated_at ASC, created_at ASC
+                """
+            ).fetchall()
         finally:
             connection.close()
 
@@ -58,8 +99,8 @@ class ListRepository:
             now = datetime.now().isoformat()
             connection.execute(
                 """
-                INSERT INTO lists (id, name, icon, color, position, list_type, is_system, is_pinned, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO lists (id, name, icon, color, position, list_type, is_system, is_pinned, is_deleted, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     list_id,
@@ -69,6 +110,7 @@ class ListRepository:
                     next_position,
                     list_type,
                     int(is_system),
+                    0,
                     0,
                     now,
                     now,
@@ -84,6 +126,9 @@ class ListRepository:
                 list_type=list_type,
                 is_system=is_system,
                 is_pinned=False,
+                is_deleted=False,
+                created_at=now,
+                updated_at=now,
             )
         finally:
             connection.close()
@@ -112,7 +157,14 @@ class ListRepository:
     def delete_list(self, list_id: str) -> None:
         connection = create_connection()
         try:
-            connection.execute("DELETE FROM lists WHERE id = ?", (list_id,))
+            connection.execute(
+                """
+                UPDATE lists
+                SET is_deleted = 1, deleted_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (datetime.now().isoformat(), datetime.now().isoformat(), list_id),
+            )
             connection.commit()
         finally:
             connection.close()
@@ -156,6 +208,48 @@ class ListRepository:
                     """,
                     (position, now, list_id),
                 )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def upsert_list(self, payload: dict) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                INSERT INTO lists (
+                    id, name, icon, color, position, list_type, is_system, is_pinned,
+                    is_deleted, deleted_at, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    icon = excluded.icon,
+                    color = excluded.color,
+                    position = excluded.position,
+                    list_type = excluded.list_type,
+                    is_system = excluded.is_system,
+                    is_pinned = excluded.is_pinned,
+                    is_deleted = excluded.is_deleted,
+                    deleted_at = excluded.deleted_at,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    payload["id"],
+                    payload["name"],
+                    payload["icon"],
+                    payload["color"],
+                    payload["position"],
+                    payload["list_type"],
+                    1 if payload["is_system"] else 0,
+                    1 if payload["is_pinned"] else 0,
+                    1 if payload.get("is_deleted") else 0,
+                    payload.get("deleted_at"),
+                    payload.get("created_at"),
+                    payload["updated_at"],
+                ),
+            )
             connection.commit()
         finally:
             connection.close()

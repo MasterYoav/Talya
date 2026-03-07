@@ -49,7 +49,8 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
+                value TEXT NOT NULL,
+                updated_at TEXT
             )
             """
         )

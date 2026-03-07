@@ -81,6 +81,10 @@ def run_migrations(connection: sqlite3.Connection) -> None:
 
     if version < 5:
         migrate_to_v5(connection)
+        version = 5
+
+    if version < 6:
+        migrate_to_v6(connection)
 
 
 def migrate_to_v4(connection: sqlite3.Connection) -> None:
@@ -191,3 +195,35 @@ def migrate_to_v5(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE lists ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
     connection.commit()
     set_schema_version(connection, 5)
+
+
+def migrate_to_v6(connection: sqlite3.Connection) -> None:
+    task_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+    if "is_deleted" not in task_columns:
+        connection.execute(
+            "ALTER TABLE tasks ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+        )
+    if "deleted_at" not in task_columns:
+        connection.execute("ALTER TABLE tasks ADD COLUMN deleted_at TEXT")
+
+    list_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(lists)").fetchall()
+    }
+    if "is_deleted" not in list_columns:
+        connection.execute(
+            "ALTER TABLE lists ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+        )
+    if "deleted_at" not in list_columns:
+        connection.execute("ALTER TABLE lists ADD COLUMN deleted_at TEXT")
+
+    settings_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(settings)").fetchall()
+    }
+    if "updated_at" not in settings_columns:
+        connection.execute("ALTER TABLE settings ADD COLUMN updated_at TEXT")
+
+    connection.commit()
+    set_schema_version(connection, 6)

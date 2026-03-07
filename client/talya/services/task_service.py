@@ -25,6 +25,9 @@ class TaskService:
     def list_tasks(self) -> list[Task]:
         return list(self._tasks)
 
+    def refresh(self) -> None:
+        self._tasks = self._repository.list_tasks()
+
     def list_tasks_for_list(self, sidebar_list: SidebarList) -> list[Task]:
         if sidebar_list.list_type == "today":
             today = date.today()

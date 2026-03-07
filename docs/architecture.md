@@ -11,3 +11,4 @@ Talya uses a local-first architecture:
 - Browser-based OAuth with local loopback callback and PKCE (Google)
 - Backend API with FastAPI (JWT, OAuth identity linking)
 - Cloud sync storage with PostgreSQL (lists, tasks, settings)
+- Client sync uses `/sync/merge` with last-write-wins

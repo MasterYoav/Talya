@@ -17,6 +17,7 @@ from talya.infrastructure.macos_launch_agent import (
 from talya.infrastructure.macos_emoji_picker import show_emoji_picker
 from talya.services.list_service import ListService
 from talya.services.task_service import TaskService
+from talya.services.sync_service import SyncService
 
 
 class AppState(QObject):
@@ -47,6 +48,7 @@ class AppState(QObject):
         self._settings_repository = SettingsRepository()
         self._task_service: TaskService | None = None
         self._list_service: ListService | None = None
+        self._sync_service = SyncService()
         self._auth_service = AuthService()
         self._dark_mode = False
         self._sidebar_collapsed = False
@@ -689,6 +691,7 @@ class AppState(QObject):
     ) -> None:
         if success:
             self._set_authenticated(name, email or account_id)
+            self._start_sync()
         else:
             self._set_auth_error(error)
 
@@ -780,3 +783,35 @@ class AppState(QObject):
                 "",
                 result.get("account_id", ""),
             )
+
+    def _start_sync(self) -> None:
+        identity = self._auth_service.load_cached_identity() or {}
+        provider = identity.get("provider")
+        provider_user_id = identity.get("provider_user_id")
+        if not provider or not provider_user_id:
+            return
+        thread = threading.Thread(
+            target=self._run_sync,
+            args=(provider, provider_user_id),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_sync(self, provider: str, provider_user_id: str) -> None:
+        try:
+            self.authStatusMessage.emit("Syncing with server...")
+            self._sync_service.sync(
+                provider,
+                provider_user_id,
+                self._user_email,
+                self._user_name,
+            )
+            if self._list_service is not None:
+                self._list_service.refresh()
+                self.sidebarListsChanged.emit()
+            if self._task_service is not None:
+                self._task_service.refresh()
+                self.tasksChanged.emit()
+            self.authStatusMessage.emit("Sync complete.")
+        except Exception as exc:
+            self.authStatusMessage.emit(f"Sync failed: {exc}")

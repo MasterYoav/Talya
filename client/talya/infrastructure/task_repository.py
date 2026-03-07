@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import sqlite3
 
 from talya.domain.task import Task
 from talya.infrastructure.database import create_connection
@@ -29,8 +30,10 @@ class TaskRepository:
                     notes,
                     due_date,
                     reminder_at,
-                    reminder_fired_at
+                    reminder_fired_at,
+                    is_deleted
                 FROM tasks
+                WHERE is_deleted = 0
                 ORDER BY created_at DESC
                 """
             ).fetchall()
@@ -69,9 +72,10 @@ class TaskRepository:
                     notes,
                     due_date,
                     reminder_at,
-                    reminder_fired_at
+                    reminder_fired_at,
+                    is_deleted
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     task.id,
@@ -87,6 +91,7 @@ class TaskRepository:
                     task.reminder_fired_at.isoformat()
                     if task.reminder_fired_at
                     else None,
+                    0,
                 ),
             )
             connection.commit()
@@ -208,10 +213,91 @@ class TaskRepository:
         try:
             connection.execute(
                 """
-                DELETE FROM tasks
+                UPDATE tasks
+                SET is_deleted = 1, deleted_at = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (task_id,),
+                (datetime.now().isoformat(), datetime.now().isoformat(), task_id),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def list_all_tasks(self) -> list[sqlite3.Row]:
+        connection = create_connection()
+        try:
+            return connection.execute(
+                """
+                SELECT
+                    id,
+                    title,
+                    list_id,
+                    section,
+                    is_completed,
+                    created_at,
+                    updated_at,
+                    notes,
+                    due_date,
+                    reminder_at,
+                    reminder_fired_at,
+                    is_deleted,
+                    deleted_at
+                FROM tasks
+                ORDER BY updated_at ASC, created_at ASC
+                """
+            ).fetchall()
+        finally:
+            connection.close()
+
+    def upsert_task(self, payload: dict) -> None:
+        connection = create_connection()
+        try:
+            connection.execute(
+                """
+                INSERT INTO tasks (
+                    id,
+                    title,
+                    section,
+                    list_id,
+                    is_completed,
+                    created_at,
+                    updated_at,
+                    notes,
+                    due_date,
+                    reminder_at,
+                    reminder_fired_at,
+                    is_deleted,
+                    deleted_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    section = excluded.section,
+                    list_id = excluded.list_id,
+                    is_completed = excluded.is_completed,
+                    notes = excluded.notes,
+                    due_date = excluded.due_date,
+                    reminder_at = excluded.reminder_at,
+                    reminder_fired_at = excluded.reminder_fired_at,
+                    updated_at = excluded.updated_at,
+                    is_deleted = excluded.is_deleted,
+                    deleted_at = excluded.deleted_at
+                """,
+                (
+                    payload["id"],
+                    payload["title"],
+                    payload["list_id"],
+                    payload["list_id"],
+                    1 if payload["is_completed"] else 0,
+                    payload.get("created_at"),
+                    payload["updated_at"],
+                    payload.get("notes", ""),
+                    payload.get("due_date"),
+                    payload.get("reminder_at"),
+                    payload.get("reminder_fired_at"),
+                    1 if payload.get("is_deleted") else 0,
+                    payload.get("deleted_at"),
+                ),
             )
             connection.commit()
         finally:

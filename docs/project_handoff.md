@@ -635,6 +635,14 @@ Notes:
 - OAuth tokens are not yet verified on the server
 - client sync wiring is still pending
 
+### Phase 14 — Client sync wiring
+Completed:
+- client sync service posts local lists/tasks/settings to `/sync/merge`
+- sync triggered after OAuth login
+- server JWT cached in keyring
+Notes:
+- local deletes are tracked via soft-delete flags for sync
+
 ---
 
 ## Current Task Database Schema
@@ -724,9 +732,11 @@ Implemented:
 - `/sync/merge` last-write-wins merge
 
 Not implemented yet:
-- client sync wiring
 - OAuth token verification on server
 - calendar connections
+
+Client sync config:
+- `TALYA_API_BASE_URL` (defaults to `http://127.0.0.1:8000`)
 
 ---
 
