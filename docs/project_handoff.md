@@ -648,7 +648,7 @@ Completed:
 - automatic sync after local changes (debounced)
 - conflict log stored in app state
 - settings view shows sync conflict log
-- periodic background sync (5 minutes)
+- last sync timestamp displayed in Settings
 
 ---
 

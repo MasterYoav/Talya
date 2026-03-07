@@ -72,7 +72,7 @@ class AppState(QObject):
         self._banner_visible = False
         self._sync_logs: list[dict] = []
         self._sync_timer: QTimer | None = None
-        self._sync_interval_timer: QTimer | None = None
+        self._last_sync_at = ""
         self.authResult.connect(self._handle_auth_result)
         self.authStatusMessage.connect(self._handle_auth_status)
         cached_profile = self._auth_service.load_cached_profile()
@@ -83,7 +83,6 @@ class AppState(QObject):
                 cached_profile.get("email", ""),
             )
         self._start_reminder_timer()
-        self._start_sync_interval()
 
     @Property(str, notify=currentSectionChanged)
     def currentSection(self) -> str:
@@ -217,6 +216,10 @@ class AppState(QObject):
     @Property("QVariantList", notify=syncLogsChanged)
     def syncLogs(self) -> list[dict]:
         return list(self._sync_logs)
+
+    @Property(str, notify=syncLogsChanged)
+    def lastSyncAt(self) -> str:
+        return self._last_sync_at
 
     @Property(bool, notify=editModeChanged)
     def editMode(self) -> bool:
@@ -821,14 +824,6 @@ class AppState(QObject):
         )
         thread.start()
 
-    def _start_sync_interval(self) -> None:
-        if self._sync_interval_timer is not None:
-            return
-        self._sync_interval_timer = QTimer(self)
-        self._sync_interval_timer.setInterval(300000)
-        self._sync_interval_timer.timeout.connect(self._start_sync)
-        self._sync_interval_timer.start()
-
     def _run_sync(self, provider: str, provider_user_id: str, access_token: str) -> None:
         try:
             self.authStatusMessage.emit("Syncing with server...")
@@ -851,6 +846,8 @@ class AppState(QObject):
             if self._task_service is not None:
                 self._task_service.refresh()
                 self.tasksChanged.emit()
+            self._last_sync_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.syncLogsChanged.emit()
             self.authStatusMessage.emit("Sync complete.")
         except Exception as exc:
             self.authStatusMessage.emit(f"Sync failed: {exc}")

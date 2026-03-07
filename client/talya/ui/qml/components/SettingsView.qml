@@ -340,6 +340,14 @@ Rectangle {
                             }
                         }
 
+                        Text {
+                            text: appState.lastSyncAt.length > 0
+                                  ? "Last sync: " + appState.lastSyncAt
+                                  : "Last sync: --"
+                            font.pixelSize: 12
+                            color: darkMode ? "#8e8e93" : "#6e6e73"
+                        }
+
                         Rectangle {
                             width: parent.width
                             height: 92
