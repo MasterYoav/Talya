@@ -260,7 +260,7 @@ Rectangle {
 
                 Rectangle {
                     width: parent.width
-                    height: 170
+                    height: 320
                     radius: 18
                     color: darkMode ? "#14161a" : "#f4f6fb"
                     border.width: darkMode ? 0 : 1
@@ -269,7 +269,7 @@ Rectangle {
                     Column {
                         anchors.fill: parent
                         anchors.margins: 14
-                        spacing: 14
+                        spacing: 16
 
                         Text {
                             text: "Reminders"
@@ -298,6 +298,78 @@ Rectangle {
                             checked: appState.reminderNotifyBackground
                             text: "Background notifications"
                             onToggled: appState.setReminderNotifyBackground(checked)
+                        }
+
+                        Rectangle {
+                            width: parent.width
+                            height: 1
+                            color: darkMode ? "#1d2026" : "#e1e6f0"
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: 12
+
+                            Text {
+                                text: "Sync conflicts"
+                                font.pixelSize: 14
+                                font.bold: true
+                                color: darkMode ? "#c7c7cc" : "#4b5563"
+                            }
+
+                            Item { width: parent.width - 140 }
+
+                            Rectangle {
+                                width: 80
+                                height: 28
+                                radius: 8
+                                color: darkMode ? "#1b1d22" : "#f3f4f8"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Clear"
+                                    font.pixelSize: 12
+                                    color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: appState.clearSyncLogs()
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: parent.width
+                            height: 92
+                            radius: 12
+                            color: darkMode ? "#101216" : "#ffffff"
+                            border.width: darkMode ? 0 : 1
+                            border.color: "#00000008"
+
+                            Column {
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 6
+
+                                Repeater {
+                                    model: appState.syncLogs
+                                    delegate: Text {
+                                        text: modelData.timestamp + " • " + modelData.message
+                                        font.pixelSize: 12
+                                        color: darkMode ? "#c7c7cc" : "#4b5563"
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Text {
+                                    visible: appState.syncLogs.length === 0
+                                    text: "No conflicts logged."
+                                    font.pixelSize: 12
+                                    color: darkMode ? "#6e6e73" : "#9aa1ad"
+                                }
+                            }
                         }
                     }
                 }

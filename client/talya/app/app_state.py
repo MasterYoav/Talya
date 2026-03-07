@@ -40,6 +40,7 @@ class AppState(QObject):
     reminderSettingsChanged = Signal()
     bannerChanged = Signal()
     sidebarBlurEnabledChanged = Signal()
+    syncLogsChanged = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -69,6 +70,8 @@ class AppState(QObject):
         self._reminder_notify_background = True
         self._banner_message = ""
         self._banner_visible = False
+        self._sync_logs: list[dict] = []
+        self._sync_timer: QTimer | None = None
         self.authResult.connect(self._handle_auth_result)
         self.authStatusMessage.connect(self._handle_auth_status)
         cached_profile = self._auth_service.load_cached_profile()
@@ -209,6 +212,10 @@ class AppState(QObject):
     def bannerVisible(self) -> bool:
         return self._banner_visible
 
+    @Property("QVariantList", notify=syncLogsChanged)
+    def syncLogs(self) -> list[dict]:
+        return list(self._sync_logs)
+
     @Property(bool, notify=editModeChanged)
     def editMode(self) -> bool:
         return self._edit_mode
@@ -323,6 +330,7 @@ class AppState(QObject):
 
     def _save_setting(self, key: str, value: str) -> None:
         self._settings_repository.set(key, value)
+        self._schedule_sync()
 
     def _parse_optional_datetime_input(
         self, value: str
@@ -380,6 +388,7 @@ class AppState(QObject):
         self._selected_task_id = task.id
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
+        self._schedule_sync()
 
     @Slot(str)
     def toggleTaskCompleted(self, task_id: str) -> None:
@@ -389,6 +398,7 @@ class AppState(QObject):
         if changed:
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot(str, str)
     def updateTaskTitle(self, task_id: str, title: str) -> None:
@@ -398,6 +408,7 @@ class AppState(QObject):
         if changed:
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot(str, str)
     def updateTaskNotes(self, task_id: str, notes: str) -> None:
@@ -407,6 +418,7 @@ class AppState(QObject):
         if changed:
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot(str, str)
     def updateTaskDueDate(self, task_id: str, due_date: str) -> None:
@@ -419,6 +431,7 @@ class AppState(QObject):
         if changed:
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot(str, str)
     def updateTaskReminderAt(self, task_id: str, reminder_at: str) -> None:
@@ -431,6 +444,7 @@ class AppState(QObject):
         if changed:
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot(str)
     def deleteTask(self, task_id: str) -> None:
@@ -442,6 +456,7 @@ class AppState(QObject):
                 self._selected_task_id = None
             self.tasksChanged.emit()
             self.selectedTaskChanged.emit()
+            self._schedule_sync()
 
     @Slot()
     def setLightMode(self) -> None:
@@ -524,6 +539,7 @@ class AppState(QObject):
         self.sidebarListsChanged.emit()
         self.currentSectionChanged.emit()
         self.tasksChanged.emit()
+        self._schedule_sync()
 
     @Slot(str, str, str, str)
     def updateSidebarList(self, list_id: str, name: str, icon: str, color: str) -> None:
@@ -538,6 +554,7 @@ class AppState(QObject):
                 self._current_section = cleaned
                 self.currentSectionChanged.emit()
             self.sidebarListsChanged.emit()
+            self._schedule_sync()
 
     @Slot(str)
     def deleteSidebarList(self, list_id: str) -> None:
@@ -563,6 +580,7 @@ class AppState(QObject):
             self.currentSectionChanged.emit()
             self.currentListTypeChanged.emit()
             self.tasksChanged.emit()
+            self._schedule_sync()
 
     @Slot(str)
     def toggleListPinned(self, list_id: str) -> None:
@@ -571,6 +589,7 @@ class AppState(QObject):
         changed = self._list_service.toggle_pinned(list_id)
         if changed:
             self.sidebarListsChanged.emit()
+            self._schedule_sync()
 
     @Slot("QVariantList")
     def reorderSidebarLists(self, ordered_ids: list[str]) -> None:
@@ -581,6 +600,7 @@ class AppState(QObject):
             return
         self._list_service.reorder_lists(cleaned)
         self.sidebarListsChanged.emit()
+        self._schedule_sync()
 
     @Slot(bool)
     def setReminderNotifyApp(self, value: bool) -> None:
@@ -802,13 +822,19 @@ class AppState(QObject):
     def _run_sync(self, provider: str, provider_user_id: str, access_token: str) -> None:
         try:
             self.authStatusMessage.emit("Syncing with server...")
-            self._sync_service.sync(
+            conflicts = self._sync_service.sync(
                 provider,
                 provider_user_id,
                 self._user_email,
                 self._user_name,
                 access_token,
             )
+            if conflicts:
+                for item in conflicts:
+                    self._add_sync_log(
+                        f"Server overwrote {item['entity']} {item['entity_id']}",
+                        item,
+                    )
             if self._list_service is not None:
                 self._list_service.refresh()
                 self.sidebarListsChanged.emit()
@@ -818,3 +844,31 @@ class AppState(QObject):
             self.authStatusMessage.emit("Sync complete.")
         except Exception as exc:
             self.authStatusMessage.emit(f"Sync failed: {exc}")
+            self._add_sync_log(f"Sync failed: {exc}", {})
+
+    def _schedule_sync(self) -> None:
+        if not self._is_authenticated:
+            return
+        identity = self._auth_service.load_cached_identity() or {}
+        if not identity.get("provider") or not identity.get("provider_user_id"):
+            return
+        if self._sync_timer is None:
+            self._sync_timer = QTimer(self)
+            self._sync_timer.setSingleShot(True)
+            self._sync_timer.timeout.connect(self._start_sync)
+        self._sync_timer.start(1200)
+
+    def _add_sync_log(self, message: str, details: dict) -> None:
+        entry = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "message": message,
+            "details": details,
+        }
+        self._sync_logs.insert(0, entry)
+        self._sync_logs = self._sync_logs[:50]
+        self.syncLogsChanged.emit()
+
+    @Slot()
+    def clearSyncLogs(self) -> None:
+        self._sync_logs = []
+        self.syncLogsChanged.emit()

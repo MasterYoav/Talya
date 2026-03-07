@@ -643,6 +643,12 @@ Completed:
 Notes:
 - local deletes are tracked via soft-delete flags for sync
 
+### Phase 15 — Auto-sync + conflict logging
+Completed:
+- automatic sync after local changes (debounced)
+- conflict log stored in app state
+- settings view shows sync conflict log
+
 ---
 
 ## Current Task Database Schema
