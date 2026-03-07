@@ -400,6 +400,13 @@ class AuthService:
     def load_cached_identity(self) -> dict | None:
         return self._token_store.load("identity")
 
+    def load_cached_provider_tokens(self, provider: str) -> dict | None:
+        if provider == "google":
+            return self._token_store.load("google_tokens")
+        if provider == "github":
+            return self._token_store.load("github_tokens")
+        return None
+
     def save_profile(self, name: str, email: str) -> None:
         self._token_store.save("profile", {"name": name, "email": email})
 

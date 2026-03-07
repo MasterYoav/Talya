@@ -790,14 +790,16 @@ class AppState(QObject):
         provider_user_id = identity.get("provider_user_id")
         if not provider or not provider_user_id:
             return
+        tokens = self._auth_service.load_cached_provider_tokens(provider) or {}
+        access_token = tokens.get("access_token", "")
         thread = threading.Thread(
             target=self._run_sync,
-            args=(provider, provider_user_id),
+            args=(provider, provider_user_id, access_token),
             daemon=True,
         )
         thread.start()
 
-    def _run_sync(self, provider: str, provider_user_id: str) -> None:
+    def _run_sync(self, provider: str, provider_user_id: str, access_token: str) -> None:
         try:
             self.authStatusMessage.emit("Syncing with server...")
             self._sync_service.sync(
@@ -805,6 +807,7 @@ class AppState(QObject):
                 provider_user_id,
                 self._user_email,
                 self._user_name,
+                access_token,
             )
             if self._list_service is not None:
                 self._list_service.refresh()

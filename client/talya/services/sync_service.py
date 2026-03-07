@@ -19,12 +19,20 @@ class SyncService:
         self._task_repository = TaskRepository()
         self._settings_repository = SettingsRepository()
 
-    def login(self, provider: str, provider_user_id: str, email: str, name: str) -> str:
+    def login(
+        self,
+        provider: str,
+        provider_user_id: str,
+        email: str,
+        name: str,
+        access_token: str,
+    ) -> str:
         response = requests.post(
             f"{self._base_url}/auth/oauth/login",
             json={
                 "provider": provider,
                 "provider_user_id": provider_user_id,
+                "access_token": access_token,
                 "email": email,
                 "name": name,
             },
@@ -43,10 +51,19 @@ class SyncService:
             return None
         return stored.get("token")
 
-    def sync(self, provider: str, provider_user_id: str, email: str, name: str) -> None:
+    def sync(
+        self,
+        provider: str,
+        provider_user_id: str,
+        email: str,
+        name: str,
+        access_token: str,
+    ) -> None:
         token = self._load_token()
         if not token:
-            token = self.login(provider, provider_user_id, email, name)
+            if not access_token:
+                raise RuntimeError("Missing provider access token for server login.")
+            token = self.login(provider, provider_user_id, email, name, access_token)
 
         now = datetime.utcnow().isoformat()
         lists = []

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class OAuthLoginRequest(BaseModel):
     provider: Literal["google", "github"]
     provider_user_id: str
+    access_token: str
     email: str
     name: str = ""
 

@@ -730,9 +730,9 @@ Implemented:
 - FastAPI scaffold (JWT + OAuth identity linking)
 - PostgreSQL schema definitions
 - `/sync/merge` last-write-wins merge
+- OAuth token verification on server (Google/GitHub)
 
 Not implemented yet:
-- OAuth token verification on server
 - calendar connections
 
 Client sync config:
