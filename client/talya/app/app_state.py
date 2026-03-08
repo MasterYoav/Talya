@@ -1,9 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import hashlib
+import json
 from pathlib import Path
 import threading
 
 from PySide6.QtCore import Property, QObject, Signal, Slot, QTimer
+from PySide6.QtGui import QFontDatabase
 
 from talya.services.auth_service import AuthService
 
@@ -18,6 +20,7 @@ from talya.infrastructure.macos_emoji_picker import show_emoji_picker
 from talya.services.list_service import ListService
 from talya.services.task_service import TaskService
 from talya.services.sync_service import SyncService
+from talya.services.calendar_service import CalendarService
 
 
 class AppState(QObject):
@@ -41,6 +44,13 @@ class AppState(QObject):
     bannerChanged = Signal()
     sidebarBlurEnabledChanged = Signal()
     syncLogsChanged = Signal()
+    calendarVisibilityChanged = Signal()
+    calendarColorChanged = Signal()
+    calendarEventsChanged = Signal()
+    calendarSourcesChanged = Signal()
+    fontFamilyChanged = Signal()
+    calendarViewChanged = Signal()
+    calendarDateChanged = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -51,6 +61,7 @@ class AppState(QObject):
         self._list_service: ListService | None = None
         self._sync_service = SyncService()
         self._auth_service = AuthService()
+        self._calendar_service = CalendarService()
         self._dark_mode = False
         self._sidebar_collapsed = False
         self._edit_mode = False
@@ -73,6 +84,20 @@ class AppState(QObject):
         self._sync_logs: list[dict] = []
         self._sync_timer: QTimer | None = None
         self._last_sync_at = ""
+        self._calendar_visible = True
+        self._calendar_color = "#9aa1ad"
+        self._calendar_view = "month"
+        self._calendar_date = date.today()
+        self._calendar_events: list[dict] = []
+        self._apple_calendars: list[dict] = []
+        self._google_calendars: list[dict] = []
+        self._selected_apple_calendar_ids: set[str] = set()
+        self._selected_google_calendar_ids: set[str] = set()
+        self._system_font_family = QFontDatabase.systemFont(
+            QFontDatabase.GeneralFont
+        ).family()
+        self._available_fonts = self._load_fonts()
+        self._font_family = ""
         self.authResult.connect(self._handle_auth_result)
         self.authStatusMessage.connect(self._handle_auth_status)
         cached_profile = self._auth_service.load_cached_profile()
@@ -221,6 +246,60 @@ class AppState(QObject):
     def lastSyncAt(self) -> str:
         return self._last_sync_at
 
+    @Property(bool, notify=calendarVisibilityChanged)
+    def calendarVisible(self) -> bool:
+        return self._calendar_visible
+
+    @Property(str, notify=calendarColorChanged)
+    def calendarColor(self) -> str:
+        return self._calendar_color
+
+    @Property("QVariantList", notify=calendarEventsChanged)
+    def calendarEvents(self) -> list[dict]:
+        return list(self._calendar_events)
+
+    @Property(str, notify=calendarViewChanged)
+    def calendarView(self) -> str:
+        return self._calendar_view
+
+    @Property(str, notify=calendarDateChanged)
+    def calendarDate(self) -> str:
+        return self._calendar_date.isoformat()
+
+    @Property("QVariantList", notify=calendarSourcesChanged)
+    def appleCalendars(self) -> list[dict]:
+        return [
+            {**item, "selected": item["id"] in self._selected_apple_calendar_ids}
+            for item in self._apple_calendars
+        ]
+
+    @Property("QVariantList", notify=calendarSourcesChanged)
+    def googleCalendars(self) -> list[dict]:
+        return [
+            {**item, "selected": item["id"] in self._selected_google_calendar_ids}
+            for item in self._google_calendars
+        ]
+
+    @Property("QVariantList", notify=calendarSourcesChanged)
+    def calendarAvailableCalendars(self) -> list[dict]:
+        return [
+            item
+            for item in self.appleCalendars + self.googleCalendars
+            if item.get("selected")
+        ]
+
+    @Property("QVariantList", notify=fontFamilyChanged)
+    def availableFonts(self) -> list[str]:
+        return self._available_fonts
+
+    @Property(str, notify=fontFamilyChanged)
+    def fontFamily(self) -> str:
+        return self._font_family or "System"
+
+    @Property(str, notify=fontFamilyChanged)
+    def fontFamilyResolved(self) -> str:
+        return self._font_family or self._system_font_family
+
     @Property(bool, notify=editModeChanged)
     def editMode(self) -> bool:
         return self._edit_mode
@@ -295,6 +374,10 @@ class AppState(QObject):
         self._current_section = current.name
         self._current_list_type = current.list_type
 
+    def _load_fonts(self) -> list[str]:
+        families = sorted({family for family in QFontDatabase.families() if family})
+        return ["System"] + families
+
     def _load_settings(self) -> None:
         dark_mode = self._settings_repository.get("dark_mode")
         sidebar_collapsed = self._settings_repository.get("sidebar_collapsed")
@@ -306,6 +389,11 @@ class AppState(QObject):
         reminder_notify_background = self._settings_repository.get(
             "reminder_notify_background"
         )
+        calendar_visible = self._settings_repository.get("calendar_visible")
+        calendar_color = self._settings_repository.get("calendar_color")
+        calendar_apple_selected = self._settings_repository.get("calendar_apple_selected")
+        calendar_google_selected = self._settings_repository.get("calendar_google_selected")
+        font_family = self._settings_repository.get("font_family")
         self._dark_mode = dark_mode == "1"
         self._sidebar_collapsed = sidebar_collapsed == "1"
         if sidebar_blur_opacity is not None:
@@ -323,12 +411,39 @@ class AppState(QObject):
             self._reminder_notify_system = reminder_notify_system == "1"
         if reminder_notify_background is not None:
             self._reminder_notify_background = reminder_notify_background == "1"
+        if calendar_visible is not None:
+            self._calendar_visible = calendar_visible == "1"
+        if calendar_color:
+            self._calendar_color = calendar_color
+        if calendar_apple_selected:
+            try:
+                self._selected_apple_calendar_ids = set(
+                    json.loads(calendar_apple_selected)
+                )
+            except json.JSONDecodeError:
+                self._selected_apple_calendar_ids = set()
+        if calendar_google_selected:
+            try:
+                self._selected_google_calendar_ids = set(
+                    json.loads(calendar_google_selected)
+                )
+            except json.JSONDecodeError:
+                self._selected_google_calendar_ids = set()
+        if font_family is not None:
+            if font_family == "System":
+                self._font_family = ""
+            else:
+                self._font_family = font_family
         self.darkModeChanged.emit()
         self.sidebarCollapsedChanged.emit()
         self.sidebarBlurOpacityChanged.emit()
         self.sidebarBlurEnabledChanged.emit()
         self.appIconChoiceChanged.emit()
         self.reminderSettingsChanged.emit()
+        self.calendarVisibilityChanged.emit()
+        self.calendarColorChanged.emit()
+        self.calendarSourcesChanged.emit()
+        self.fontFamilyChanged.emit()
         if self._reminder_notify_background:
             project_root = Path(__file__).resolve().parents[2]
             install_launch_agent(project_root)
@@ -514,6 +629,17 @@ class AppState(QObject):
         self.appIconChoiceChanged.emit()
 
     @Slot(str)
+    def setFontFamily(self, value: str) -> None:
+        cleaned = value.strip()
+        if cleaned == "System":
+            cleaned = ""
+        if cleaned == self._font_family:
+            return
+        self._font_family = cleaned
+        self._save_setting("font_family", value or "System")
+        self.fontFamilyChanged.emit()
+
+    @Slot(str)
     def selectList(self, list_id: str) -> None:
         if self._list_service is None:
             return
@@ -530,6 +656,238 @@ class AppState(QObject):
         self.currentListTypeChanged.emit()
         self.tasksChanged.emit()
         self.selectedTaskChanged.emit()
+
+    @Slot()
+    def selectCalendar(self) -> None:
+        self._current_list_id = None
+        self._current_section = "Calendar"
+        self._current_list_type = "calendar"
+        self._selected_task_id = None
+        self.currentSectionChanged.emit()
+        self.currentListTypeChanged.emit()
+        self.tasksChanged.emit()
+        self.selectedTaskChanged.emit()
+        self.refreshCalendarEvents()
+
+    @Slot(bool)
+    def setCalendarVisible(self, value: bool) -> None:
+        if self._calendar_visible == value:
+            return
+        self._calendar_visible = value
+        self._save_setting("calendar_visible", "1" if value else "0")
+        if not value and self._current_list_type == "calendar":
+            self._ensure_current_list()
+            self.currentSectionChanged.emit()
+            self.currentListTypeChanged.emit()
+            self.tasksChanged.emit()
+        self.calendarVisibilityChanged.emit()
+
+    @Slot(str)
+    def setCalendarColor(self, value: str) -> None:
+        cleaned = value.strip()
+        if not cleaned:
+            return
+        if cleaned == self._calendar_color:
+            return
+        self._calendar_color = cleaned
+        self._save_setting("calendar_color", cleaned)
+        self.calendarColorChanged.emit()
+
+    @Slot()
+    def refreshCalendars(self) -> None:
+        thread = threading.Thread(target=self._run_refresh_calendars, daemon=True)
+        thread.start()
+
+    def _run_refresh_calendars(self) -> None:
+        apple = self._calendar_service.list_apple_calendars()
+        google_token = (
+            self._auth_service.load_google_calendar_tokens()
+            or self._auth_service.load_cached_provider_tokens("google")
+            or {}
+        )
+        google = self._calendar_service.list_google_calendars(
+            google_token.get("access_token", "")
+        )
+        self._apple_calendars = apple
+        self._google_calendars = google
+        self.calendarSourcesChanged.emit()
+
+    @Slot()
+    def connectGoogleCalendar(self) -> None:
+        thread = threading.Thread(target=self._run_google_calendar_auth, daemon=True)
+        thread.start()
+
+    def _run_google_calendar_auth(self) -> None:
+        result = self._auth_service.authenticate_google_calendar()
+        if "error" in result:
+            self.authStatusMessage.emit(result["error"])
+            return
+        self.refreshCalendars()
+
+    @Slot(str, bool)
+    def toggleAppleCalendar(self, calendar_id: str, enabled: bool) -> None:
+        if enabled:
+            self._selected_apple_calendar_ids.add(calendar_id)
+        else:
+            self._selected_apple_calendar_ids.discard(calendar_id)
+        self._save_setting(
+            "calendar_apple_selected",
+            json.dumps(sorted(self._selected_apple_calendar_ids)),
+        )
+        self.calendarSourcesChanged.emit()
+        self.refreshCalendarEvents()
+
+    @Slot(str, bool)
+    def toggleGoogleCalendar(self, calendar_id: str, enabled: bool) -> None:
+        if enabled:
+            self._selected_google_calendar_ids.add(calendar_id)
+        else:
+            self._selected_google_calendar_ids.discard(calendar_id)
+        self._save_setting(
+            "calendar_google_selected",
+            json.dumps(sorted(self._selected_google_calendar_ids)),
+        )
+        self.calendarSourcesChanged.emit()
+        self.refreshCalendarEvents()
+
+    @Slot(str)
+    def setCalendarView(self, view: str) -> None:
+        if view not in {"day", "month", "year"}:
+            return
+        if view == self._calendar_view:
+            return
+        self._calendar_view = view
+        self.calendarViewChanged.emit()
+        self.refreshCalendarEvents()
+
+    @Slot(str)
+    def setCalendarDate(self, value: str) -> None:
+        try:
+            self._calendar_date = date.fromisoformat(value)
+        except ValueError:
+            return
+        self.calendarDateChanged.emit()
+        self.refreshCalendarEvents()
+
+    @Slot()
+    def refreshCalendarEvents(self) -> None:
+        thread = threading.Thread(target=self._run_refresh_events, daemon=True)
+        thread.start()
+
+    def _run_refresh_events(self) -> None:
+        start, end = self._calendar_range()
+        google_token = (
+            self._auth_service.load_google_calendar_tokens()
+            or self._auth_service.load_cached_provider_tokens("google")
+            or {}
+        )
+        events = self._calendar_service.list_events(
+            sorted(self._selected_apple_calendar_ids),
+            sorted(self._selected_google_calendar_ids),
+            start,
+            end,
+            google_token.get("access_token", ""),
+        )
+        self._calendar_events = events
+        self.calendarEventsChanged.emit()
+
+    def _calendar_range(self) -> tuple[datetime, datetime]:
+        if self._calendar_view == "day":
+            start_date = self._calendar_date
+            end_date = self._calendar_date + timedelta(days=1)
+        elif self._calendar_view == "year":
+            start_date = date(self._calendar_date.year, 1, 1)
+            end_date = date(self._calendar_date.year + 1, 1, 1)
+        else:
+            start_date = date(self._calendar_date.year, self._calendar_date.month, 1)
+            if self._calendar_date.month == 12:
+                end_date = date(self._calendar_date.year + 1, 1, 1)
+            else:
+                end_date = date(self._calendar_date.year, self._calendar_date.month + 1, 1)
+        return (
+            datetime.combine(start_date, datetime.min.time()),
+            datetime.combine(end_date, datetime.min.time()),
+        )
+
+    @Slot(str, str, str, str, str, str, bool)
+    def createCalendarEvent(
+        self,
+        provider: str,
+        calendar_id: str,
+        title: str,
+        start_iso: str,
+        end_iso: str,
+        notes: str,
+        all_day: bool,
+    ) -> None:
+        if not title.strip():
+            return
+        try:
+            start_dt = datetime.fromisoformat(start_iso)
+            end_dt = datetime.fromisoformat(end_iso)
+        except ValueError:
+            return
+        if all_day:
+            start_dt = datetime.combine(start_dt.date(), datetime.min.time())
+            end_dt = datetime.combine(end_dt.date(), datetime.min.time()) + timedelta(days=1)
+        google_token = (
+            self._auth_service.load_google_calendar_tokens()
+            or self._auth_service.load_cached_provider_tokens("google")
+            or {}
+        )
+        self._calendar_service.create_event(
+            provider,
+            calendar_id,
+            title.strip(),
+            start_dt,
+            end_dt,
+            notes.strip(),
+            "",
+            google_token.get("access_token", ""),
+            all_day,
+        )
+        self.refreshCalendarEvents()
+
+    @Slot(str, str, str, str, str, str, str, bool)
+    def updateCalendarEvent(
+        self,
+        provider: str,
+        event_id: str,
+        calendar_id: str,
+        title: str,
+        start_iso: str,
+        end_iso: str,
+        notes: str,
+        all_day: bool,
+    ) -> None:
+        if not title.strip():
+            return
+        try:
+            start_dt = datetime.fromisoformat(start_iso)
+            end_dt = datetime.fromisoformat(end_iso)
+        except ValueError:
+            return
+        if all_day:
+            start_dt = datetime.combine(start_dt.date(), datetime.min.time())
+            end_dt = datetime.combine(end_dt.date(), datetime.min.time()) + timedelta(days=1)
+        google_token = (
+            self._auth_service.load_google_calendar_tokens()
+            or self._auth_service.load_cached_provider_tokens("google")
+            or {}
+        )
+        self._calendar_service.update_event(
+            provider,
+            event_id,
+            calendar_id,
+            title.strip(),
+            start_dt,
+            end_dt,
+            notes.strip(),
+            "",
+            google_token.get("access_token", ""),
+            all_day,
+        )
+        self.refreshCalendarEvents()
 
     @Slot(str, str, str)
     def addSidebarList(self, name: str, icon: str, color: str) -> None:
@@ -558,6 +916,28 @@ class AppState(QObject):
             if list_id == self._current_list_id:
                 self._current_section = cleaned
                 self.currentSectionChanged.emit()
+            self.sidebarListsChanged.emit()
+            self._schedule_sync()
+
+    @Slot(str)
+    def updateCurrentListName(self, name: str) -> None:
+        if self._list_service is None or self._current_list_id is None:
+            return
+        cleaned = name.strip()
+        if not cleaned:
+            return
+        current = self._list_service.get_by_id(self._current_list_id)
+        if current is None or current.list_type in {"settings", "profile", "calendar"}:
+            return
+        changed = self._list_service.update_list(
+            self._current_list_id,
+            cleaned,
+            current.icon,
+            current.color,
+        )
+        if changed:
+            self._current_section = cleaned
+            self.currentSectionChanged.emit()
             self.sidebarListsChanged.emit()
             self._schedule_sync()
 

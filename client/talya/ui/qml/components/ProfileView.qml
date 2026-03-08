@@ -26,23 +26,15 @@ Rectangle {
         anchors.bottomMargin: 28
         spacing: 22
 
-        Rectangle {
-            width: parent.width
-            height: 64
-            radius: 18
-            color: darkMode ? "#101114" : "#ffffff"
-            border.width: darkMode ? 0 : 1
-            border.color: "#00000008"
+        Behavior on anchors.leftMargin {
+            NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+        }
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: 22
-                text: "Profile"
-                font.pixelSize: 34
-                font.bold: true
-                color: darkMode ? "#f2f2f7" : "#1c1c1e"
-            }
+        Text {
+            text: "Profile"
+            font.pixelSize: 34
+            font.bold: true
+            color: darkMode ? "#f2f2f7" : "#1c1c1e"
         }
 
         Rectangle {
@@ -310,6 +302,7 @@ Rectangle {
                         text: appState.userName
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                        onEditingFinished: appState.updateProfile(profileNameField.text, profileEmailField.text)
 
                         background: Rectangle {
                             radius: 12
@@ -332,6 +325,7 @@ Rectangle {
                         text: appState.userEmail
                         font.pixelSize: 16
                         color: darkMode ? "#f2f2f7" : "#1c1c1e"
+                        onEditingFinished: appState.updateProfile(profileNameField.text, profileEmailField.text)
 
                         background: Rectangle {
                             radius: 12
@@ -345,27 +339,6 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
 
-                        Rectangle {
-                            Layout.preferredWidth: 120
-                            Layout.preferredHeight: 44
-                            radius: 14
-                            color: darkMode ? "#1a1e27" : "#eaf0ff"
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Save"
-                                font.pixelSize: 15
-                                font.bold: true
-                                color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: appState.updateProfile(profileNameField.text, profileEmailField.text)
-                            }
-                        }
-
                         Item { Layout.fillWidth: true }
 
                         Rectangle {
@@ -373,6 +346,7 @@ Rectangle {
                             Layout.preferredHeight: 44
                             radius: 14
                             color: darkMode ? "#3a171b" : "#ffe9ec"
+                            visible: appState.isAuthenticated
 
                             Text {
                                 anchors.centerIn: parent

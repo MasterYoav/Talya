@@ -74,7 +74,12 @@ class AuthService:
     GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
     GOOGLE_DEVICE_CODE_URL = "https://oauth2.googleapis.com/device/code"
     GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
-    GOOGLE_SCOPES = ["openid", "email", "profile"]
+    GOOGLE_SCOPES = [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar",
+    ]
     GOOGLE_CLIENT_SECRET = os.getenv("TALYA_GOOGLE_CLIENT_SECRET", "")
     GOOGLE_REDIRECT_PORT = int(os.getenv("TALYA_GOOGLE_REDIRECT_PORT", "8764"))
     GITHUB_CLIENT_ID = os.getenv("TALYA_GITHUB_CLIENT_ID", "")
@@ -189,6 +194,78 @@ class AuthService:
             "provider_user_id": provider_user_id,
             "account_id": email or name,
         }
+
+    def authenticate_google_calendar(self) -> dict:
+        verifier = self._generate_code_verifier()
+        challenge = self._generate_code_challenge(verifier)
+        state = self._generate_state()
+
+        if not self.GOOGLE_CLIENT_SECRET:
+            return {"error": "Google OAuth client secret is missing."}
+
+        callback_server = OAuthCallbackServer(
+            port=self.GOOGLE_REDIRECT_PORT, path="/oauth/google"
+        )
+        try:
+            redirect_uri = callback_server.start()
+        except OSError:
+            return {"error": f"Port {self.GOOGLE_REDIRECT_PORT} is already in use."}
+
+        auth_params = {
+            "client_id": self.GOOGLE_CLIENT_ID,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": " ".join(self.GOOGLE_SCOPES),
+            "state": state,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        auth_url = f"{self.GOOGLE_AUTH_URL}?{urllib.parse.urlencode(auth_params)}"
+        webbrowser.open(auth_url, new=1, autoraise=True)
+
+        if not callback_server.wait():
+            callback_server.shutdown()
+            return {"error": "Login timed out. Try again."}
+
+        callback_server.shutdown()
+
+        if callback_server.error:
+            return {"error": f"Login failed: {callback_server.error}"}
+        if callback_server.state != state:
+            return {"error": "Login failed: invalid state."}
+        if not callback_server.code:
+            return {"error": "Login failed: missing authorization code."}
+
+        token_payload = {
+            "client_id": self.GOOGLE_CLIENT_ID,
+            "code": callback_server.code,
+            "code_verifier": verifier,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        }
+        token_payload["client_secret"] = self.GOOGLE_CLIENT_SECRET
+        token_response = requests.post(
+            self.GOOGLE_TOKEN_URL,
+            data=token_payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=30,
+        )
+        if token_response.status_code != 200:
+            return {
+                "error": (
+                    "Token exchange failed. "
+                    f"Status {token_response.status_code}: {token_response.text}"
+                )
+            }
+        tokens = token_response.json()
+        access_token = tokens.get("access_token")
+        if not access_token:
+            return {"error": "Token exchange failed: missing access token."}
+
+        self._token_store.save("google_calendar_tokens", tokens)
+        return {"status": "ok"}
 
     def start_google_device_flow(self) -> dict:
         payload = {
@@ -407,6 +484,9 @@ class AuthService:
             return self._token_store.load("github_tokens")
         return None
 
+    def load_google_calendar_tokens(self) -> dict | None:
+        return self._token_store.load("google_calendar_tokens")
+
     def save_profile(self, name: str, email: str) -> None:
         self._token_store.save("profile", {"name": name, "email": email})
 
@@ -416,6 +496,7 @@ class AuthService:
         self._token_store.clear("github_tokens")
         self._token_store.clear("identity")
         self._token_store.clear("server_token")
+        self._token_store.clear("google_calendar_tokens")
 
     @staticmethod
     def _generate_code_verifier() -> str:

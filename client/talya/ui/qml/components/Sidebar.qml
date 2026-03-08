@@ -13,6 +13,9 @@ Rectangle {
     ListModel { id: unpinnedListModel }
 
     function rebuildSidebarLists() {
+        if (!appState) {
+            return
+        }
         pinnedListModel.clear()
         unpinnedListModel.clear()
         for (let i = 0; i < appState.sidebarLists.length; i++) {
@@ -37,60 +40,58 @@ Rectangle {
     border.width: 0
     radius: 0
 
-    readonly property int bannerHeight: root.collapsed ? 0 : 110
-
-    Image {
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: root.bannerHeight
-        source: darkMode
-                ? Qt.resolvedUrl("../../../../../media/dark_2k_banner.png")
-                : Qt.resolvedUrl("../../../../../media/2k_banner.png")
-        fillMode: Image.PreserveAspectCrop
-        visible: !root.collapsed
-        z: 3
-    }
-
     Rectangle {
         anchors.fill: parent
         color: darkMode ? "transparent" : "#22ffffff"
         z: 1
     }
 
-    Rectangle {
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        z: 2
+        enabled: appState && !appState.calendarVisible
+        onClicked: {
+            if (appState && !appState.calendarVisible) {
+                calendarHiddenMenu.popup()
+            }
+        }
+    }
+
+    Item {
         id: collapseButton
-        anchors.left: parent.left
-        anchors.leftMargin: 12
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         anchors.topMargin: 12
-        width: 36
-        height: 36
-        radius: 10
-        color: darkMode ? "#33ffffff" : "#ffe4dd"
-        border.width: darkMode ? 1 : 0
-        border.color: darkMode ? "#55ffffff" : "transparent"
+        width: root.collapsed ? 36 : 56
+        height: root.collapsed ? 36 : 56
         z: 4
 
-        Text {
+        Image {
             anchors.centerIn: parent
-            text: "≡"
-            font.pixelSize: 18
-            color: darkMode ? "#f2f2f7" : "#6b3a34"
+            source: darkMode
+                    ? Qt.resolvedUrl("../../../../../media/dark.xcassets/AppIcon.appiconset/256-mac.png")
+                    : Qt.resolvedUrl("../../../../../media/light.xcassets/AppIcon.appiconset/256-mac.png")
+            width: parent.width
+            height: parent.height
+            fillMode: Image.PreserveAspectFit
         }
 
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: appState.toggleSidebarCollapsed()
+            onClicked: if (appState) { appState.toggleSidebarCollapsed() }
         }
+
+        Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
     }
 
     ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: 12
         anchors.rightMargin: 12
-        anchors.topMargin: root.collapsed ? 60 : (root.bannerHeight + 12)
+        anchors.topMargin: collapseButton.height + 16
         anchors.bottomMargin: 12
         spacing: root.collapsed ? 10 : 12
         z: 3
@@ -109,6 +110,24 @@ Rectangle {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
+
+            SidebarItem {
+                visible: appState && appState.calendarVisible
+                Layout.fillWidth: true
+                label: "Calendar"
+                iconText: "📅"
+                accentColor: appState ? appState.calendarColor : "#9aa1ad"
+                collapsed: root.collapsed
+                darkMode: root.darkMode
+                selected: appState && appState.currentListType === "calendar"
+                onClicked: if (appState) { appState.selectCalendar() }
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    onClicked: calendarContextMenu.popup()
+                }
+            }
 
             Text {
                 visible: pinnedListModel.count > 0 && !root.collapsed
@@ -135,8 +154,8 @@ Rectangle {
                     accentColor: color
                     collapsed: root.collapsed
                     darkMode: root.darkMode
-                    selected: appState.currentSection === name
-                    onClicked: appState.selectList(listId)
+                    selected: appState && appState.currentSection === name
+                    onClicked: if (appState) { appState.selectList(listId) }
 
                     MouseArea {
                         anchors.fill: parent
@@ -185,8 +204,8 @@ Rectangle {
                     accentColor: color
                     collapsed: root.collapsed
                     darkMode: root.darkMode
-                    selected: appState.currentSection === name
-                    onClicked: appState.selectList(listId)
+                    selected: appState && appState.currentSection === name
+                    onClicked: if (appState) { appState.selectList(listId) }
 
                     MouseArea {
                         anchors.fill: parent
@@ -235,7 +254,7 @@ Rectangle {
             }
 
             Repeater {
-                model: appState.sidebarLists
+                model: appState ? appState.sidebarLists : []
 
                 delegate: SidebarItem {
                     required property var modelData
@@ -246,8 +265,8 @@ Rectangle {
                     accentColor: modelData.color
                     collapsed: root.collapsed
                     darkMode: root.darkMode
-                    selected: appState.currentSection === modelData.name
-                    onClicked: appState.selectList(modelData.id)
+                    selected: appState && appState.currentSection === modelData.name
+                    onClicked: if (appState) { appState.selectList(modelData.id) }
                 }
             }
         }
@@ -273,13 +292,13 @@ Rectangle {
         MenuItem {
             text: listContextMenu.isPinned ? "Unpin" : "Pin"
             enabled: listContextMenu.listType !== "settings" && listContextMenu.listType !== "profile"
-            onTriggered: appState.toggleListPinned(listContextMenu.listId)
+            onTriggered: if (appState) { appState.toggleListPinned(listContextMenu.listId) }
         }
 
         MenuItem {
             text: "Remove"
             enabled: listContextMenu.listType !== "settings" && listContextMenu.listType !== "profile"
-            onTriggered: appState.deleteSidebarList(listContextMenu.listId)
+            onTriggered: if (appState) { appState.deleteSidebarList(listContextMenu.listId) }
         }
     }
 
@@ -380,7 +399,7 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: appState.showEmojiPicker()
+                        onClicked: if (appState) { appState.showEmojiPicker() }
                     }
                 }
             }
@@ -436,7 +455,9 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         const iconValue = newListIconField.text.length > 0 ? newListIconField.text : "•"
-                        appState.addSidebarList(newListName.text, iconValue, newColorPreview)
+                        if (appState) {
+                            appState.addSidebarList(newListName.text, iconValue, newColorPreview)
+                        }
                         newListName.text = ""
                         newListIconField.text = ""
                         newColorPreview = "#9aa1ad"
@@ -444,6 +465,29 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    Menu {
+        id: calendarContextMenu
+
+        MenuItem {
+            text: "Edit"
+            onTriggered: calendarColorDialog.open()
+        }
+
+        MenuItem {
+            text: "Hide"
+            onTriggered: if (appState) { appState.setCalendarVisible(false) }
+        }
+    }
+
+    Menu {
+        id: calendarHiddenMenu
+
+        MenuItem {
+            text: "Show calendar"
+            onTriggered: if (appState) { appState.setCalendarVisible(true) }
         }
     }
 
@@ -471,8 +515,9 @@ Rectangle {
         property string editColor: "#9aa1ad"
 
         onOpened: {
-            for (let i = 0; i < appState.sidebarLists.length; i++) {
-                const item = appState.sidebarLists[i]
+            const items = appState ? appState.sidebarLists : []
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i]
                 if (item.id === listId) {
                     editListPopup.editName = item.name
                     editListPopup.editIcon = item.icon
@@ -480,6 +525,13 @@ Rectangle {
                     break
                 }
         }
+        }
+        onClosed: {
+            if (!appState || !editListPopup.listId) {
+                return
+            }
+            const iconValue = editListPopup.editIcon.length > 0 ? editListPopup.editIcon : "•"
+            appState.updateSidebarList(editListPopup.listId, editListPopup.editName, iconValue, editListPopup.editColor)
         }
 
         ColumnLayout {
@@ -564,7 +616,7 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: appState.showEmojiPicker()
+                        onClicked: if (appState) { appState.showEmojiPicker() }
                     }
                 }
             }
@@ -601,29 +653,9 @@ Rectangle {
                 }
             }
 
-            Rectangle {
-                width: 80
-                height: 36
-                radius: 10
-                color: root.darkMode ? "#1a1e27" : "#eaf0ff"
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "Save"
-                    font.pixelSize: 13
-                    font.bold: true
-                    color: root.darkMode ? "#f2f2f7" : "#1c1c1e"
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        const iconValue = editListPopup.editIcon.length > 0 ? editListPopup.editIcon : "•"
-                        appState.updateSidebarList(editListPopup.listId, editListPopup.editName, iconValue, editListPopup.editColor)
-                        editListPopup.close()
-                    }
-                }
+            Item {
+                width: 1
+                height: 1
             }
         }
     }
@@ -636,6 +668,11 @@ Rectangle {
     ColorDialog {
         id: editColorDialog
         onAccepted: editListPopup.editColor = selectedColor.toString()
+    }
+
+    ColorDialog {
+        id: calendarColorDialog
+        onAccepted: if (appState) { appState.setCalendarColor(selectedColor.toString()) }
     }
 
     property string newColorPreview: "#9aa1ad"

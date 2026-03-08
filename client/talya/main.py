@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from PySide6.QtGui import QGuiApplication, QSurfaceFormat
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication, QSurfaceFormat
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQml import QQmlApplicationEngine
 
@@ -29,6 +29,11 @@ def main() -> int:
     from talya.app.app_state import AppState
 
     app_state = AppState()
+    def apply_font() -> None:
+        family = app_state.fontFamilyResolved
+        app.setFont(QFont(family))
+
+    apply_font()
     engine.rootContext().setContextProperty("appState", app_state)
 
     qml_file = Path(__file__).parent / "ui" / "qml" / "Main.qml"
@@ -60,6 +65,10 @@ def main() -> int:
     app_state.sidebarBlurEnabledChanged.connect(handle_sidebar_width_changed)
     app_state.appIconChoiceChanged.connect(
         lambda: apply_app_icon(app_state.appIconChoice)
+    )
+    app_state.fontFamilyChanged.connect(apply_font)
+    app_state.fontFamilyChanged.connect(
+        lambda: engine.rootContext().setContextProperty("appState", app_state)
     )
 
     return app.exec()

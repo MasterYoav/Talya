@@ -14,3 +14,8 @@ Talya uses a local-first architecture:
 - JWT expiry is not enforced in dev (server accepts expired tokens)
 - Cloud sync storage with PostgreSQL (lists, tasks, settings)
 - Client sync uses `/sync/merge` with last-write-wins
+- Calendar providers: Apple EventKit + Google Calendar API
+- Calendar UI in client: month/day/year views with event editor and all-day handling
+- Settings UI uses tabbed navigation with theme/preferences/calendar sections
+- App supports user-selectable fonts and live theme switching
+- Sidebar collapse is driven by app icon button (top of sidebar)

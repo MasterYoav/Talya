@@ -24,22 +24,31 @@ Rectangle {
         anchors.bottomMargin: 28
         spacing: 20
 
-        Rectangle {
-            width: Math.min(parent.width, 920)
-            height: 64
-            radius: 18
-            color: darkMode ? "#101114" : "#ffffff"
-            border.width: darkMode ? 0 : 1
-            border.color: "#00000008"
+        Behavior on anchors.leftMargin {
+            NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+        }
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: 22
-                text: appState.currentSection
-                font.pixelSize: 34
-                font.bold: true
-                color: darkMode ? "#f2f2f7" : "#1c1c1e"
+        TextInput {
+            id: sectionTitle
+            width: Math.min(parent.width, 920)
+            height: 44
+            text: appState ? appState.currentSection : ""
+            font.pixelSize: 34
+            font.bold: true
+            font.family: appState ? appState.fontFamilyResolved : ""
+            color: darkMode ? "#f2f2f7" : "#1c1c1e"
+            readOnly: !appState
+                      || appState.currentListType === "settings"
+                      || appState.currentListType === "profile"
+                      || appState.currentListType === "calendar"
+            selectionColor: darkMode ? "#2b2f38" : "#dbe7ff"
+            selectedTextColor: darkMode ? "#ffffff" : "#1c1c1e"
+            cursorVisible: !readOnly
+
+            onEditingFinished: {
+                if (!readOnly && appState) {
+                    appState.updateCurrentListName(text)
+                }
             }
         }
 
@@ -85,8 +94,10 @@ Rectangle {
                         }
 
                         onAccepted: {
-                            appState.addTask(text)
-                            text = ""
+                            if (appState) {
+                                appState.addTask(text)
+                                text = ""
+                            }
                         }
                     }
                 }
@@ -96,15 +107,15 @@ Rectangle {
                 width: 104
                 height: 56
                 radius: 16
-                color: appState.editMode
-                       ? (darkMode ? "#1a1e27" : "#eaf0ff")
-                       : (darkMode ? "#101114" : "#ffffff")
+            color: appState && appState.editMode
+                   ? (darkMode ? "#1a1e27" : "#eaf0ff")
+                   : (darkMode ? "#101114" : "#ffffff")
                 border.width: darkMode ? 0 : 1
                 border.color: "#00000008"
 
                 Text {
                     anchors.centerIn: parent
-                    text: appState.editMode ? "Done" : "Edit"
+                    text: appState && appState.editMode ? "Done" : "Edit"
                     font.pixelSize: 16
                     font.bold: true
                     color: darkMode ? "#f2f2f7" : "#1c1c1e"
@@ -113,7 +124,7 @@ Rectangle {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: appState.toggleEditMode()
+                    onClicked: if (appState) { appState.toggleEditMode() }
                 }
             }
         }
@@ -132,7 +143,7 @@ Rectangle {
                 spacing: 14
 
                 Text {
-                    text: appState.currentSection + " Tasks"
+                    text: (appState ? appState.currentSection : "") + " Tasks"
                     font.pixelSize: 20
                     font.bold: true
                     color: darkMode ? "#f2f2f7" : "#1c1c1e"
@@ -151,7 +162,7 @@ Rectangle {
                         spacing: 10
 
                         Repeater {
-                            model: appState.tasks
+                            model: appState ? appState.tasks : []
 
                             delegate: Rectangle {
                                 id: taskCard
@@ -160,7 +171,7 @@ Rectangle {
                                 width: parent.width
                                 height: 76
                                 radius: 16
-                                color: appState.selectedTask.id === modelData.id
+                                color: appState && appState.selectedTask && appState.selectedTask.id === modelData.id
                                        ? (darkMode ? "#1c1e24" : "#eef4ff")
                                        : (darkMode ? "#15161a" : "#fbfcff")
                                 border.width: 0
@@ -170,6 +181,9 @@ Rectangle {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
+                                        if (!appState) {
+                                            return
+                                        }
                                         appState.selectTask(modelData.id)
                                         taskDetailsPopup.open()
                                     }
@@ -193,13 +207,13 @@ Rectangle {
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: appState.toggleTaskCompleted(modelData.id)
+                                            onClicked: if (appState) { appState.toggleTaskCompleted(modelData.id) }
                                         }
                                     }
 
                                     Column {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        width: appState.editMode ? taskCard.width - 180 : taskCard.width - 90
+                                        width: appState && appState.editMode ? taskCard.width - 180 : taskCard.width - 90
                                         spacing: 4
 
                                         Text {
@@ -223,7 +237,7 @@ Rectangle {
                                     }
 
                                     Rectangle {
-                                        visible: appState.editMode
+                                        visible: appState && appState.editMode
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 40
                                         height: 40
@@ -240,7 +254,7 @@ Rectangle {
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: appState.deleteTask(modelData.id)
+                                            onClicked: if (appState) { appState.deleteTask(modelData.id) }
                                         }
                                     }
                                 }
@@ -248,8 +262,8 @@ Rectangle {
                         }
 
                         Text {
-                            visible: appState.tasks.length === 0
-                            text: "No tasks in " + appState.currentSection + " yet. Add your first one above."
+                            visible: appState && appState.tasks.length === 0
+                            text: "No tasks in " + (appState ? appState.currentSection : "") + " yet. Add your first one above."
                             font.pixelSize: 15
                             color: darkMode ? "#8e8e93" : "#6e6e73"
                         }
@@ -277,7 +291,16 @@ Rectangle {
         }
 
         onClosed: {
-            appState.clearSelectedTask()
+            if (appState && appState.hasSelectedTask) {
+                const taskId = appState.selectedTask.id
+                appState.updateTaskDueDate(taskId, draftDueDate)
+                appState.updateTaskReminderAt(taskId, draftReminderAt)
+                appState.updateTaskNotes(taskId, draftNotes)
+                appState.updateTaskTitle(taskId, draftTitle)
+            }
+            if (appState) {
+                appState.clearSelectedTask()
+            }
         }
 
         property string draftTitle: ""
@@ -333,7 +356,7 @@ Rectangle {
         }
 
         function loadFromSelectedTask() {
-            if (appState.hasSelectedTask) {
+            if (appState && appState.hasSelectedTask) {
                 draftTitle = appState.selectedTask.title || ""
                 draftNotes = appState.selectedTask.notes || ""
                 draftDueDate = appState.selectedTask.dueDate
@@ -843,7 +866,7 @@ Rectangle {
                     spacing: 6
 
                     Text {
-                        text: appState.hasSelectedTask
+                        text: appState && appState.hasSelectedTask
                               ? "Created " + appState.selectedTask.createdLabel
                               : ""
                         font.pixelSize: 14
@@ -851,7 +874,7 @@ Rectangle {
                     }
 
                     Text {
-                        text: appState.hasSelectedTask && appState.selectedTask.updatedAt
+                        text: appState && appState.hasSelectedTask && appState.selectedTask.updatedAt
                               ? "Updated recently"
                               : "No recent updates"
                         font.pixelSize: 14
@@ -865,49 +888,9 @@ Rectangle {
                 height: 1
             }
 
-            Row {
-                width: parent.width
-                height: 48
-
-                Item {
-                    width: parent.width - 112
-                    height: 1
-                }
-
-                Rectangle {
-                    width: 112
-                    height: 48
-                    radius: 14
-                    color: darkMode ? "#1a1e27" : "#eaf0ff"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Save"
-                        font.pixelSize: 16
-                        font.bold: true
-                        color: darkMode ? "#f2f2f7" : "#1c1c1e"
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (appState.hasSelectedTask) {
-                                const taskId = appState.selectedTask.id
-                                const newTitle = taskDetailsPopup.draftTitle
-                                const newNotes = taskDetailsPopup.draftNotes
-                                const newDueDate = taskDetailsPopup.draftDueDate
-                                const newReminderAt = taskDetailsPopup.draftReminderAt
-
-                                appState.updateTaskDueDate(taskId, newDueDate)
-                                appState.updateTaskReminderAt(taskId, newReminderAt)
-                                appState.updateTaskNotes(taskId, newNotes)
-                                appState.updateTaskTitle(taskId, newTitle)
-                            }
-                            taskDetailsPopup.close()
-                        }
-                    }
-                }
+            Item {
+                width: 1
+                height: 1
             }
         }
     }

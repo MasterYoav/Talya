@@ -650,6 +650,16 @@ Completed:
 - settings view shows sync conflict log
 - last sync timestamp displayed in Settings
 
+### Phase 16 — Calendar integration (in progress)
+In progress:
+- Calendar section view with day/month/year toggles
+- Sidebar calendar button with edit/hide context menu
+- Settings > Calendars section with Apple/Google selection
+- Apple + Google calendar providers (read/write events)
+- Event create + edit flow (provider-specific)
+Notes:
+- Google Calendar requires re-consent due to added calendar scope
+
 ---
 
 ## Current Task Database Schema
@@ -773,33 +783,26 @@ Fix:
 - notes saved before title
 - popup then closed
 
+### Calendar UI + event state issues
+Recent work added a full calendar section with month/day/year views, event editor, and all-day support.
+Fixes included:
+- resolved QML layout loops and null reference errors
+- restored add/edit event flow and calendar selector
+- enforced end time > start time (normalizing durations)
+- added all-day toggle + day view all-day row
+- moved settings to tabbed nav and removed framed section headers
+
 ---
 
 ## What Should Be Built Next
 
 ### Recommended next step
-**Add due date and reminder editing to the task popup**
+**Calendar integrations + polish**
 
-That means:
-- editable due date field
-- editable reminder field
-- repository/service support for saving them
-- app state exposure
-- basic formatting in UI
-
-This is the next real step because:
-- schema already supports it
-- popup architecture already exists
-- it moves Talya toward real timeline logic
-
-### After that
-Recommended order:
-
-1. due date + reminder support
-2. make Today/Upcoming intelligent based on due dates
-3. persist UI settings locally
-4. add reminder scheduling logic
-5. later: backend/sync/auth/calendar
+- finish Apple/Google account auth flows + sync parity
+- verify two-way edits (create/update/delete)
+- tighten day view all-day layout edge cases
+- add event search and more robust conflict handling
 
 ---
 
@@ -817,8 +820,8 @@ Validation and update behavior belong there.
 ### 4. Use migrations for schema changes
 Do not silently change the schema and hope old DBs survive.
 
-### 5. Prefer explicit Save behavior for important edits
-This already proved more reliable than passive focus-based saving.
+### 5. Prefer consistent auto-save behavior
+The UI now auto-saves edits (no Save buttons). Avoid reintroducing manual saves unless necessary.
 
 ---
 
@@ -847,10 +850,11 @@ Talya is currently a **working local-first desktop task app foundation** with:
 - SQLite persistence
 - evolving task schema
 - section navigation
-- detail popup
-- editable notes/title
-- settings page
-- theme switching
+- inline list title editing + auto-save
+- modern settings page with tabbed sections
+- theme switching + app font selection
+- calendar section (month/day/year + event editor)
+- sidebar app icon toggle + small UI animations
 - good architectural base for due dates, reminders, and later sync
 
 It is no longer a toy shell.  
